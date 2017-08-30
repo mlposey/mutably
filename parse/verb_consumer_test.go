@@ -17,8 +17,8 @@ func TestSectionDivision(t *testing.T) {
 	}
 }
 
-// *VerbConsumer.Consume should identify which words on the page
-// are verbs.
+// *VerbConsumer.Consume should identify which languages define
+// the word as a verb.
 func TestCountVerbs(t *testing.T) {
 	counter := parse.VerbConsumer{}
 	counter.Consume(mockPage.Page)
