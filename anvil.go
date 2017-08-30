@@ -7,18 +7,29 @@ import (
 	"anvil/db"
 	"anvil/parse"
 	"os"
+	"database/sql"
 )
 
 func main() {
 	importFlag := flag.Bool("import", false,
-		"Import a .xml pages dump.")
+	`Import a .xml pages dump into a PostgreSQL database.
+		Takes the form -import -d [-host] [-port] -u -p pages-file
+		The database (-d), user (-u), password (-p) and pages file are
+		required flags. Host and port are optional and will default to
+		'localhost' and 5432, respectively. The pages file should be
+		pages dump without metadata, since import processes the raw
+		xml file--not the compressed version. Metapages is far too
+		large when uncompressed.
+
+	Example:
+		anvil -import -d=mutablydb -u=mutably -p=aPass latest-pages.xml`)
 	dbNameFlag := flag.String("d",
 		"", "The database name")
 	dbUserFlag := flag.String("u", "",
 		"The database user")
 	dbPwdFlag := flag.String("p", "",
 		"The database user's password")
-	dbHostFlag := flag.String("h", "localhost",
+	dbHostFlag := flag.String("host", "localhost",
 		"The hostname of the database")
 	dbPortFlag := flag.Uint("port", 5432,
 		"The database port")
