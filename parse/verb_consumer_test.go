@@ -6,7 +6,7 @@ import (
 )
 
 // *VerbConsumer.Consume should split a page into sections, where
-// each section the word's context for a specific language.
+// each section is the word's context for a specific language.
 func TestSectionDivision(t *testing.T) {
 	counter := parse.VerbConsumer{}
 	counter.Consume(mockPage.Page)
