@@ -45,9 +45,9 @@ func main() {
 	}
 
 	if *importFlag {
-		file, credentials := parseImportFlags(dbNameFlag, dbHostFlag,
+		file, psqlDB := parseImportFlags(dbNameFlag, dbHostFlag,
 			dbUserFlag, dbPwdFlag, dbPortFlag)
-		parse.ProcessPages(file, &parse.VerbConsumer{credentials})
+		parse.ProcessPages(file, &parse.VerbConsumer{DB:psqlDB})
 
 	} else if *viewPageFlag {
 		if len(flag.Args()) != 2 {
@@ -58,7 +58,7 @@ func main() {
 	}
 }
 
-func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string, dbPort *uint) (*os.File, db.KeyRing) {
+func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string, dbPort *uint) (*os.File, *sql.DB) {
 	if flag.NFlag() < 4 || *dbName == "" || *dbUser == "" || *dbPwd == "" ||
 		len(flag.Args()) == 0 {
 		fmt.Println("Usage: anvil -import -d [-h] [-port] -u -p pages-file")
@@ -72,11 +72,18 @@ func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string, dbPort *uint) (*os.
 		os.Exit(1)
 	}
 
-	return file, db.KeyRing{
+	key := db.KeyRing{
 		Database: *dbName,
 		Host: 	  *dbHost,
 		Port: 	  *dbPort,
 		User: 	  *dbUser,
 		Password: *dbPwd,
 	}
+
+	psqlDB, err := key.Validate()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	return file, psqlDB
 }
