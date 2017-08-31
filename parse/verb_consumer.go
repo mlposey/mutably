@@ -4,7 +4,6 @@ import (
 	"strings"
 	"regexp"
 	"database/sql"
-	"fmt"
 )
 
 // VerbConsumer adds verbs to a database.
@@ -56,17 +55,6 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 		}
 	}
 	return true, nil
-}
-
-// insert adds a verb definition to the database defined by consumer.Key.
-func (consumer *VerbConsumer) insert(verb, lang, template string) {
-	// TODO: Insert verbs into database.
-	fmt.Printf(
-`{
-	verb: %s,
-	lang: %s,
-	template: %s
-}`, verb, lang, template)
 }
 
 // GetTemplates creates a *Verb for each context a language defines.
