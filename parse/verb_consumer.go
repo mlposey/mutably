@@ -49,7 +49,7 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 			consumer.VerbCount++
 
 			language := extractLanguage(content, languageSections[i])
-			verbs := getTemplates(content, &page.Title, &language, languageSections[i])
+			verbs := GetTemplates(content, &page.Title, &language, languageSections[i])
 			for _, verb := range verbs {
 				verb.AddTo(consumer.DB)
 			}
@@ -69,8 +69,24 @@ func (consumer *VerbConsumer) insert(verb, lang, template string) {
 }`, verb, lang, template)
 }
 
-func getTemplates(pageContent, verb, language *string, sectionBounds []int) []*Verb {
-	return []*Verb{}
+// GetTemplates creates a *Verb for each context a language defines.
+// For example, the verb 'lie' in English can mean different things, so
+// a template for each meaning is assigned to a *Verb object.
+//
+// sectionBounds should define the start and stop positions within
+// pageContent that define verb in language.
+func GetTemplates(pageContent, verb, language *string, sectionBounds []int) []*Verb {
+	section := (*pageContent)[sectionBounds[0]:sectionBounds[1]]
+
+	templatePattern := regexp.MustCompile("{{.*}}")
+	templates := templatePattern.FindAllString(section, -1)
+
+	var verbs []*Verb
+	for _, template := range templates {
+		verbs = append(verbs, &Verb{Text:verb, Language:language, Template:template})
+	}
+
+	return verbs
 }
 
 // Find the language header in str.

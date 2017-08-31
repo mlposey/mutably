@@ -3,6 +3,7 @@ package parse_test
 import (
 	"testing"
 	"anvil/parse"
+	"fmt"
 )
 
 // *VerbConsumer.Consume should split a page into sections, where
@@ -26,6 +27,48 @@ func TestCountVerbs(t *testing.T) {
 	if counter.VerbCount != mockPage.VerbCount {
 		t.Error("Expected", mockPage.VerbCount, "got",
 			counter.VerbCount)
+	}
+}
+
+// GetTemplates should make a *Verb out of each template a language defines.
+func TestGetTemplates(t *testing.T) {
+	word := "blepsh"
+	language := "Blosh"
+
+	templates := []string{
+		"{{test-template|test}}",
+		"{{super-test-template|test}}",
+	}
+	content := fmt.Sprintf(
+		`
+		test test test
+		test
+
+		====Verb====
+		%s
+
+		test
+		test test
+
+		====Verb====
+		%s
+
+		test
+		`, templates[0], templates[1])
+
+	bounds := []int{0, len(content)}
+
+	verbs := parse.GetTemplates(&content, &word, &language, bounds)
+
+	if len(verbs) != len(templates) {
+		t.Error("Expected", len(templates), "templates, found", len(verbs))
+	}
+
+	if
+		verbs[0].Template == verbs[1].Template ||
+		(verbs[0].Template != templates[0] && verbs[0].Template != templates[1]) ||
+		(verbs[1].Template != templates[0] && verbs[1].Template != templates[1]) {
+		t.Error("Failed to read templates")
 	}
 }
 
