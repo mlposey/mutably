@@ -9,7 +9,7 @@ import (
 // *VerbConsumer.Consume should split a page into sections, where
 // each section is the word's context for a specific language.
 func TestSectionDivision(t *testing.T) {
-	counter := parse.VerbConsumer{}
+	counter := parse.NewVerbConsumer(nil)
 	counter.Consume(mockPage.Page)
 
 	if counter.LanguageCount != mockPage.LanguageCount {
@@ -21,7 +21,7 @@ func TestSectionDivision(t *testing.T) {
 // *VerbConsumer.Consume should identify which languages define
 // the word as a verb.
 func TestCountVerbs(t *testing.T) {
-	counter := parse.VerbConsumer{}
+	counter := parse.NewVerbConsumer(nil)
 	counter.Consume(mockPage.Page)
 
 	if counter.VerbCount != mockPage.VerbCount {
@@ -58,7 +58,8 @@ func TestGetTemplates(t *testing.T) {
 
 	bounds := []int{0, len(content)}
 
-	verbs := parse.GetTemplates(&content, &word, &language, bounds)
+	consumer := parse.NewVerbConsumer(nil)
+	verbs := consumer.GetTemplates(&content, &word, &language, bounds)
 
 	if len(verbs) != len(templates) {
 		t.Error("Expected", len(templates), "templates, found", len(verbs))

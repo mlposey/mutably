@@ -11,10 +11,20 @@ import (
 type VerbConsumer struct {
 	DB *sql.DB  // Database connection
 
+	// Pattern for verb templates
+	templatePattern *regexp.Regexp
+
 	// These are really only useful for testing.
 	// TODO: Test section and verb detection without these variables.
 	LanguageCount int
 	VerbCount int
+}
+
+func NewVerbConsumer(db *sql.DB) *VerbConsumer {
+	return &VerbConsumer{
+		DB: db,
+		templatePattern: regexp.MustCompile(`{{.*}}`),
+	}
 }
 
 // Consume conditionally adds the contents of page to a database.
@@ -48,7 +58,7 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 			consumer.VerbCount++
 
 			language := extractLanguage(content, languageSections[i])
-			verbs := GetTemplates(content, &page.Title, &language, languageSections[i])
+			verbs := consumer.GetTemplates(content, &page.Title, &language, languageSections[i])
 			for _, verb := range verbs {
 				verb.AddTo(consumer.DB)
 			}
@@ -63,11 +73,11 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 //
 // sectionBounds should define the start and stop positions within
 // pageContent that define verb in language.
-func GetTemplates(pageContent, verb, language *string, sectionBounds []int) []*Verb {
+func (consumer *VerbConsumer) GetTemplates(pageContent, verb, language *string,
+		sectionBounds []int) []*Verb {
 	section := (*pageContent)[sectionBounds[0]:sectionBounds[1]]
 
-	templatePattern := regexp.MustCompile("{{.*}}")
-	templates := templatePattern.FindAllString(section, -1)
+	templates := consumer.templatePattern.FindAllString(section, -1)
 
 	var verbs []*Verb
 	for _, template := range templates {
