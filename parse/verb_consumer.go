@@ -11,6 +11,8 @@ import (
 type VerbConsumer struct {
 	DB *sql.DB  // Database connection
 
+	// Pattern for language headers
+	languagePattern *regexp.Regexp
 	// Pattern for verb templates
 	templatePattern *regexp.Regexp
 
@@ -23,6 +25,7 @@ type VerbConsumer struct {
 func NewVerbConsumer(db *sql.DB) *VerbConsumer {
 	return &VerbConsumer{
 		DB: db,
+		languagePattern: regexp.MustCompile(`(==|^==)([\w ]+)(==$|==\s)`),
 		templatePattern: regexp.MustCompile(`{{.*}}`),
 	}
 }
@@ -35,31 +38,27 @@ func NewVerbConsumer(db *sql.DB) *VerbConsumer {
 func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 	content := &page.Revision.Text
 
-	// The contents of the page are split into language sections. Each
-	// section describes the word as it exists in that language.
+	// The contents of the page are split into sections that each start
+	// with a language header.
+	// Each section describes the word as it exists in that language.
 	// An English section would start with a '==English==' header.
-	//languageSections := regexp.MustCompile(`(==|^==)(\w+)(==$|==\s)`).
-	languageSections := regexp.MustCompile(`(==|^==)([\w ]+)(==$|==\s)`).
-		FindAllStringIndex(*content, -1)
+	languageHeaders := consumer.languagePattern.FindAllStringIndex(*content, -1)
 
-	sectionCount := len(languageSections)
+	sectionCount := len(languageHeaders)
 	consumer.LanguageCount = sectionCount
 
-	// Create a placeholder for the last section so we can grab a complete slice.
-	// Before:
-	// 		"section1 | section2 | section3" --> []{section1, section2}
-	// After:
-	// 		"section1 | section2 | section3 | placeholder" --> []{section1, section2, section3}
-	languageSections = append(languageSections, []int{len(*content), 0})
+	// Section content exists between two language headers. Thus, we must
+	// create a fake header at the end to grab the last section.
+	languageHeaders = append(languageHeaders, []int{len(*content), 0})
 
 	// TODO: Submit batches of verbs to a multithreaded database worker.
 	for i := 0; i < sectionCount - 1; i++ {
-		section := (*content)[languageSections[i][1]:languageSections[i + 1][0]]
+		section := (*content)[languageHeaders[i][1]:languageHeaders[i + 1][0]]
 
-		if hasVerb(content, i, languageSections) {
+		if hasVerb(content, i, languageHeaders) {
 			consumer.VerbCount++
 
-			language := extractLanguage(content, languageSections[i])
+			language := extractLanguage(content, languageHeaders[i])
 			verbs := consumer.GetTemplates(&section, &page.Title, &language)
 			for _, verb := range verbs {
 				verb.AddTo(consumer.DB)
