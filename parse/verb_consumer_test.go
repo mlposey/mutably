@@ -57,7 +57,8 @@ func TestGetTemplates(t *testing.T) {
 		`, templates[0], templates[1])
 
 	consumer := parse.NewVerbConsumer(nil)
-	verbs := consumer.GetTemplates(&content, &word, &language)
+	consumer.CurrentSection = content
+	verbs := consumer.GetTemplates(&word, &language)
 
 	if len(verbs) != len(templates) {
 		t.Error("Expected", len(templates), "templates, found", len(verbs))

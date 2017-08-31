@@ -11,6 +11,11 @@ import (
 type VerbConsumer struct {
 	DB *sql.DB  // Database connection
 
+	// The section of the current language being processed
+	// This will change throughout the lifetime of Consume because
+	// each page has many sections.
+	CurrentSection string
+
 	// Pattern for language headers
 	languagePattern *regexp.Regexp
 	// Pattern for verb templates
@@ -53,13 +58,13 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 
 	// TODO: Submit batches of verbs to a multithreaded database worker.
 	for i := 0; i < sectionCount - 1; i++ {
-		section := (*content)[languageHeaders[i][1]:languageHeaders[i + 1][0]]
+		consumer.CurrentSection = (*content)[languageHeaders[i][1]:languageHeaders[i + 1][0]]
 
-		if hasVerb(content, i, languageHeaders) {
+		if strings.Contains(consumer.CurrentSection, "===Verb===") {
 			consumer.VerbCount++
 
 			language := extractLanguage(content, languageHeaders[i])
-			verbs := consumer.GetTemplates(&section, &page.Title, &language)
+			verbs := consumer.GetTemplates(&page.Title, &language)
 			for _, verb := range verbs {
 				verb.AddTo(consumer.DB)
 			}
@@ -68,14 +73,10 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 	return true, nil
 }
 
-// GetTemplates creates a *Verb for each context a language defines.
-// For example, the verb 'lie' in English can mean different things, so
-// a template for each meaning is assigned to a *Verb object.
-//
-// sectionBounds should define the start and stop positions within
-// pageContent that define verb in language.
-func (consumer *VerbConsumer) GetTemplates(section, verb, language *string) []*Verb {
-	templates := consumer.templatePattern.FindAllString(*section, -1)
+// GetTemplates creates a *Verb for each verb template in the current section.
+func (consumer *VerbConsumer) GetTemplates(verb, language *string) []*Verb {
+	templates := consumer.templatePattern.FindAllString(
+		consumer.CurrentSection, -1)
 
 	var verbs []*Verb
 	for _, template := range templates {
@@ -89,11 +90,3 @@ func (consumer *VerbConsumer) GetTemplates(section, verb, language *string) []*V
 func extractLanguage(str *string, indices []int) string {
 	return (*str)[indices[0]+2 : indices[1]-3]
 }
-
-// Return true if the ith section in str contains a verb definition.
-func hasVerb(str *string, i int, indices [][]int) bool {
-	return strings.Contains((*str)[indices[i][1]:indices[i+1][0]],
-		"===Verb===")
-}
-
-
