@@ -34,6 +34,7 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 		FindAllStringIndex(*content, -1)
 
 	sectionCount := len(languageSections)
+	consumer.LanguageCount = sectionCount
 
 	// Create a placeholder for the last section so we can grab a complete slice.
 	// Before:
@@ -42,26 +43,19 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 	// 		"section1 | section2 | section3 | placeholder" --> []{section1, section2, section3}
 	languageSections = append(languageSections, []int{len(*content), 0})
 
+	// TODO: Submit batches of verbs to a multithreaded database worker.
 	for i := 0; i < sectionCount; i++ {
-		consumer.tryInsert(*content, page.Title, i, languageSections)
+		if hasVerb(content, i, languageSections) {
+			consumer.VerbCount++
+
+			language := extractLanguage(content, languageSections[i])
+			verbs := getTemplates(content, &page.Title, &language, languageSections[i])
+			for _, verb := range verbs {
+				verb.AddTo(consumer.DB)
+			}
+		}
 	}
 	return true, nil
-}
-
-// tryInsert determines if a language context defines a verb. If it does, the
-// definition is passed to the insertion procedure.
-func (consumer *VerbConsumer) tryInsert(pageContent, word string,
-		sectionIndex int, languageSections [][]int) {
-	consumer.LanguageCount++
-	fmt.Println("language:", extractLanguage(pageContent, languageSections[sectionIndex]))
-	if isVerb(pageContent, sectionIndex, languageSections) {
-		consumer.VerbCount++
-		consumer.insert(
-			word,
-			extractLanguage(pageContent, languageSections[sectionIndex]),
-			"{}", // TODO: Extract the template.
-		)
-	}
 }
 
 // insert adds a verb definition to the database defined by consumer.Key.
@@ -75,14 +69,18 @@ func (consumer *VerbConsumer) insert(verb, lang, template string) {
 }`, verb, lang, template)
 }
 
-// Find the language header in str.
-func extractLanguage(str string, indices []int) string {
-	return str[indices[0]+2 : indices[1]-3]
+func getTemplates(pageContent, verb, language *string, sectionBounds []int) []*Verb {
+	return []*Verb{}
 }
 
-// Return true if the ith section in str details a verb
-func isVerb(str string, i int, indices [][]int) bool {
-	return strings.Contains(str[indices[i][1]:indices[i+1][0]],
+// Find the language header in str.
+func extractLanguage(str *string, indices []int) string {
+	return (*str)[indices[0]+2 : indices[1]-3]
+}
+
+// Return true if the ith section in str contains a verb definition.
+func hasVerb(str *string, i int, indices [][]int) bool {
+	return strings.Contains((*str)[indices[i][1]:indices[i+1][0]],
 		"===Verb===")
 }
 
