@@ -47,7 +47,7 @@ func main() {
 	if *importFlag {
 		file, psqlDB := parseImportFlags(dbNameFlag, dbHostFlag,
 			dbUserFlag, dbPwdFlag, dbPortFlag)
-		parse.ProcessPages(file, &parse.VerbConsumer{DB:psqlDB})
+		parse.ProcessPages(file, parse.NewVerbConsumer(psqlDB))
 
 	} else if *viewPageFlag {
 		if len(flag.Args()) != 2 {
