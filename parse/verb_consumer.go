@@ -53,12 +53,14 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 	languageSections = append(languageSections, []int{len(*content), 0})
 
 	// TODO: Submit batches of verbs to a multithreaded database worker.
-	for i := 0; i < sectionCount; i++ {
+	for i := 0; i < sectionCount - 1; i++ {
+		section := (*content)[languageSections[i][1]:languageSections[i + 1][0]]
+
 		if hasVerb(content, i, languageSections) {
 			consumer.VerbCount++
 
 			language := extractLanguage(content, languageSections[i])
-			verbs := consumer.GetTemplates(content, &page.Title, &language, languageSections[i])
+			verbs := consumer.GetTemplates(&section, &page.Title, &language)
 			for _, verb := range verbs {
 				verb.AddTo(consumer.DB)
 			}
@@ -73,11 +75,8 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 //
 // sectionBounds should define the start and stop positions within
 // pageContent that define verb in language.
-func (consumer *VerbConsumer) GetTemplates(pageContent, verb, language *string,
-		sectionBounds []int) []*Verb {
-	section := (*pageContent)[sectionBounds[0]:sectionBounds[1]]
-
-	templates := consumer.templatePattern.FindAllString(section, -1)
+func (consumer *VerbConsumer) GetTemplates(section, verb, language *string) []*Verb {
+	templates := consumer.templatePattern.FindAllString(*section, -1)
 
 	var verbs []*Verb
 	for _, template := range templates {
