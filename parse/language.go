@@ -28,6 +28,9 @@ type Verb struct {
 // Really, the database should be adding the verb--not the verb adding itself.
 // TODO: Solve dependency issues in order to decouple Verb from sql.DB.
 
+// AddTo adds the verb's template to db.
+// The language must already be inserted, but the verb itself will be inserted
+// if it is not in the database.
 func (v *Verb) AddTo(db *sql.DB) error {
 	var verbId uint
 
