@@ -4,6 +4,7 @@ import (
 	"strings"
 	"regexp"
 	"database/sql"
+	"fmt"
 )
 
 // VerbConsumer adds verbs to a database.
@@ -31,7 +32,7 @@ func NewVerbConsumer(db *sql.DB) *VerbConsumer {
 	return &VerbConsumer{
 		DB: db,
 		languagePattern: regexp.MustCompile(`(==|^==)([\w ]+)(==$|==\s)`),
-		templatePattern: regexp.MustCompile(`{{.*}}`),
+		templatePattern: regexp.MustCompile(`{{2}[^{]*verb[^{]*}{2}`),
 	}
 }
 
@@ -66,7 +67,10 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 			language := strings.ToLower(extractLanguage(content, languageHeaders[i]))
 			verbs := consumer.GetTemplates(&page.Title, &language)
 			for _, verb := range verbs {
-				verb.AddTo(consumer.DB)
+				err := verb.AddTo(consumer.DB)
+				if err != nil {
+					fmt.Println(err.Error())
+				}
 			}
 		}
 	}
