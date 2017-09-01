@@ -4,6 +4,7 @@ import (
 	"strings"
 	"regexp"
 	"database/sql"
+	"fmt"
 )
 
 // VerbConsumer adds verbs to a database.
@@ -63,10 +64,13 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 		if strings.Contains(consumer.CurrentSection, "===Verb===") {
 			consumer.VerbCount++
 
-			language := extractLanguage(content, languageHeaders[i])
+			language := strings.ToLower(extractLanguage(content, languageHeaders[i]))
 			verbs := consumer.GetTemplates(&page.Title, &language)
 			for _, verb := range verbs {
-				verb.AddTo(consumer.DB)
+				err := verb.AddTo(consumer.DB)
+				if err != nil {
+					fmt.Println(err)
+				}
 			}
 		}
 	}
