@@ -5,9 +5,23 @@ import (
 	"errors"
 )
 
+type Language string
+
+// ExistsIn checks db for the presence of the language.
+func (lang Language) ExistsIn(db *sql.DB) bool {
+	var languageExists bool
+	db.QueryRow(
+		`
+		SELECT EXISTS(
+			SELECT * FROM languages WHERE description = $1
+		)
+		`, lang).Scan(&languageExists)
+	return languageExists
+}
+
 type Verb struct {
 	Text *string
-	Language *string
+	Lang *Language
 	Template string
 }
 
@@ -25,7 +39,7 @@ func (v *Verb) AddTo(db *sql.DB) error {
 			INSERT INTO verbs (verb, lang)
 				VALUES ($1, $2)
 			RETURNING id
-			`, *v.Text, *v.Language)
+			`, *v.Text, *v.Lang)
 		if row.Scan(&verbId) == sql.ErrNoRows {
 			return errors.New("Failed to insert verb " + *v.Text)
 		}

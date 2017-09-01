@@ -64,27 +64,21 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 		if strings.Contains(consumer.CurrentSection, "===Verb===") {
 			consumer.VerbCount++
 
-			language := strings.ToLower(extractLanguage(content, languageHeaders[i]))
-			var languageExists bool
-			consumer.DB.QueryRow(
-				`
-				SELECT EXISTS(
-					SELECT * FROM languages WHERE description = $1
-				)
-				`, language).Scan(&languageExists)
+			language := extractLanguage(content, languageHeaders[i])
 
-			// TODO: Handle addition of new languages.
-			// Some languages in the wiki won't match the descriptions from a
-			// registry file exactly. Create a way to infer that two are the same.
-			// Looking at language tags may be a start.
-			if !languageExists {
+			// TODO: Insert new languages into DB.
+			// The problem is that we know the description (i.e., the language
+			// var itself) but not the tag. Either (a) create some value
+			// to store in the tag column or (b) retrieve tags from the web.
+			if !language.ExistsIn(consumer.DB) {
 				fmt.Println("Language", language, "is undefined")
 				continue
 			}
 
-			verbs := consumer.GetTemplates(&page.Title, &language)
-			for _, verb := range verbs {
-				err := verb.AddTo(consumer.DB)
+			verbTemplates := consumer.GetTemplates(&page.Title, &language)
+
+			for _, template := range verbTemplates {
+				err := template.AddTo(consumer.DB)
 				if err != nil {
 					fmt.Println(err.Error())
 				}
@@ -95,19 +89,19 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 }
 
 // GetTemplates creates a *Verb for each verb template in the current section.
-func (consumer *VerbConsumer) GetTemplates(verb, language *string) []*Verb {
+func (consumer *VerbConsumer) GetTemplates(verb *string, language *Language) []*Verb {
 	templates := consumer.templatePattern.FindAllString(
 		consumer.CurrentSection, -1)
 
 	var verbs []*Verb
 	for _, template := range templates {
-		verbs = append(verbs, &Verb{Text:verb, Language:language, Template:template})
+		verbs = append(verbs, &Verb{Text:verb, Lang:language, Template:template})
 	}
 
 	return verbs
 }
 
 // Find the language header in str.
-func extractLanguage(str *string, indices []int) string {
-	return (*str)[indices[0]+2 : indices[1]-3]
+func extractLanguage(str *string, indices []int) Language {
+	return Language(strings.ToLower((*str)[indices[0]+2 : indices[1]-3]))
 }
