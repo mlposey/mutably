@@ -31,11 +31,14 @@ func (v *Verb) AddTo(db *sql.DB) error {
 		return errors.New("Language " + *v.Language + " is undefined")
 	}
 
-	_, err := db.Exec(
+	// TODO: Fix duplicate pkey errors.
+	// This problem is likely related to the incorrect template extraction.
+	// Try to fix that first.
+	db.Exec(
 		`
 		INSERT INTO verbs (word, lang, template)
 			VALUES($1, $2, $3)
 		`, *v.Text, *v.Language, v.Template)
 
-	return err
+	return nil
 }

@@ -47,6 +47,8 @@ func TestGetTemplates(t *testing.T) {
 		====Verb====
 		%s
 
+		%s
+
 		test
 		test test
 
@@ -54,7 +56,7 @@ func TestGetTemplates(t *testing.T) {
 		%s
 
 		test
-		`, templates[0], templates[1])
+		`, templates[0], templates[0], templates[1])
 
 	consumer := parse.NewVerbConsumer(nil)
 	consumer.CurrentSection = content
