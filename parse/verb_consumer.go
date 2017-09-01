@@ -65,6 +65,23 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 			consumer.VerbCount++
 
 			language := strings.ToLower(extractLanguage(content, languageHeaders[i]))
+			var languageExists bool
+			consumer.DB.QueryRow(
+				`
+				SELECT EXISTS(
+					SELECT * FROM languages WHERE description = $1
+				)
+				`, language).Scan(&languageExists)
+
+			// TODO: Handle addition of new languages.
+			// Some languages in the wiki won't match the descriptions from a
+			// registry file exactly. Create a way to infer that two are the same.
+			// Looking at language tags may be a start.
+			if !languageExists {
+				fmt.Println("Language", language, "is undefined")
+				continue
+			}
+
 			verbs := consumer.GetTemplates(&page.Title, &language)
 			for _, verb := range verbs {
 				err := verb.AddTo(consumer.DB)

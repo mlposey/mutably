@@ -15,20 +15,20 @@ type Verb struct {
 // TODO: Solve dependency issues in order to decouple Verb from sql.DB.
 
 func (v *Verb) AddTo(db *sql.DB) error {
-	var languageExists bool
-	db.QueryRow(
-		`
-		SELECT EXISTS(
-			SELECT * FROM languages WHERE description = $1
-		)
-		`, *v.Language).Scan(&languageExists)
+	var verbId uint
 
-	// TODO: Handle addition of new languages.
-	// Some languages in the wiki won't match the descriptions from a
-	// registry file exactly. Create a way to infer that two are the same.
-	// Looking at language tags may be a start.
-	if !languageExists {
-		return errors.New("Language " + *v.Language + " is undefined")
+	row := db.QueryRow(`SELECT id FROM verbs WHERE verb = $1`, *v.Text)
+	if row.Scan(&verbId) == sql.ErrNoRows {
+		// Insert the verb so the template has something to refer to.
+		row = db.QueryRow(
+			`
+			INSERT INTO verbs (verb, lang)
+				VALUES ($1, $2)
+			RETURNING id
+			`, *v.Text, *v.Language)
+		if row.Scan(&verbId) == sql.ErrNoRows {
+			return errors.New("Failed to insert verb " + *v.Text)
+		}
 	}
 
 	// TODO: Fix duplicate pkey errors.
@@ -36,9 +36,9 @@ func (v *Verb) AddTo(db *sql.DB) error {
 	// Try to fix that first.
 	_, err := db.Exec(
 		`
-		INSERT INTO verbs (word, lang, template)
-			VALUES($1, $2, $3)
-		`, *v.Text, *v.Language, v.Template)
+		INSERT INTO templates (verb_id, template)
+			VALUES($1, $2)
+		`, verbId, v.Template)
 
 	return err
 }
