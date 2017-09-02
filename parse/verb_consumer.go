@@ -75,7 +75,7 @@ func (consumer *VerbConsumer) coordinateJobs() {
 // that do not contain verb definitions are ignored.
 func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 
-	// A worker will pick this job up and process page with *VerbConsumer.scrape.
+	// A worker will pick this job up and process page with *VerbConsumer.scrape
 	consumer.JobQueue <- page
 
 	return true, nil
@@ -97,28 +97,36 @@ func (consumer *VerbConsumer) scrape(page Page) {
 	// create a fake header at the end to grab the last section.
 	languageHeaders = append(languageHeaders, []int{len(*content), 0})
 
-	// TODO: Submit batches of verbs to a multithreaded database worker.
 	for i := 0; i < sectionCount - 1; i++ {
 		consumer.CurrentSection = (*content)[languageHeaders[i][1]:languageHeaders[i + 1][0]]
 
 		if strings.Contains(consumer.CurrentSection, "===Verb===") {
 			consumer.VerbCount++
 
-			language := extractLanguage(content, languageHeaders[i])
+			verb := Verb{
+				Language: extractLanguage(content, languageHeaders[i]),
+				Text: page.Title,
+			}
 
 			// TODO: Insert new languages into DB.
 			// The problem is that we know the description (i.e., the language
-			// var itself) but not the tag. Either (a) create some value
-			// to store in the tag column or (b) retrieve tags from the web.
-			if !language.ExistsIn(consumer.DB) {
-				fmt.Println("Language", language, "is undefined")
+			// var itself) but not the tag. Either (a) create some temporary
+			// value to store in the tag column or (b) retrieve tags from the web.
+			if !verb.Language.ExistsIn(consumer.DB) {
+				fmt.Println("Language", verb.Language, "is undefined")
 				continue
 			}
 
-			verbTemplates := consumer.GetTemplates(&page.Title, &language)
+			verbId, err := verb.TryInsert(consumer.DB)
+			if err != nil {
+				fmt.Println(err.Error())
+				continue
+			}
+
+			verbTemplates := consumer.GetTemplates()
 
 			for _, template := range verbTemplates {
-				err := template.AddTo(consumer.DB)
+				err := template.AddTo(consumer.DB, verbId)
 				if err != nil {
 					fmt.Println(err.Error())
 				}
@@ -127,22 +135,24 @@ func (consumer *VerbConsumer) scrape(page Page) {
 	}
 }
 
-// GetTemplates creates a *Verb for each unique verb template in the current section.
-func (consumer *VerbConsumer) GetTemplates(verb *string, language *Language) []*Verb {
+// GetTemplates creates a VerbTemplate for each unique verb template in the
+// current section.
+func (consumer *VerbConsumer) GetTemplates() []VerbTemplate {
 	templates := consumer.templatePattern.FindAllString(
 		consumer.CurrentSection, -1)
 
-	var verbs []*Verb
+	var verbTemplates []VerbTemplate
 	haveSeen := make(map[string]bool)
 
+	// Some sections have repeat template definitions; ignore duplicates.
 	for _, template := range templates {
 		if !haveSeen[template] {
-			verbs = append(verbs, &Verb{Text:verb, Lang:language, Template:template})
+			verbTemplates = append(verbTemplates, VerbTemplate(template))
 			haveSeen[template] = true
 		}
 	}
 
-	return verbs
+	return verbTemplates
 }
 
 // Find the language header in str.

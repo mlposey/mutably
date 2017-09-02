@@ -8,46 +8,49 @@ import (
 type Language string
 
 // ExistsIn checks db for the presence of the language.
-func (lang Language) ExistsIn(db *sql.DB) bool {
-	var languageExists bool
+func (lang Language) ExistsIn(db *sql.DB) (exists bool) {
 	db.QueryRow(
 		`
 		SELECT EXISTS(
 			SELECT * FROM languages WHERE description = $1
 		)
-		`, lang).Scan(&languageExists)
-	return languageExists
+		`, lang).Scan(&exists)
+	return exists
 }
 
 type Verb struct {
-	Text *string
-	Lang *Language
-	Template string
+	Language Language
+	Text string
 }
 
-// Really, the database should be adding the verb--not the verb adding itself.
-// TODO: Solve dependency issues in order to decouple Verb from sql.DB.
+// TryInsert adds verb to db if it is not already there.
+// The id of the new (or existing) row is returned.
+func (verb Verb) TryInsert(db *sql.DB) (int, error) {
+	verbId := -1
 
-// AddTo adds the verb's template to db.
-// The language must already be inserted, but the verb itself will be inserted
-// if it is not in the database.
-func (v *Verb) AddTo(db *sql.DB) error {
-	var verbId uint
+	row := db.QueryRow(
+		`
+		SELECT id FROM verbs WHERE verb = $1 AND lang = $2
+		`, verb.Text, verb.Language)
 
-	row := db.QueryRow(`SELECT id FROM verbs WHERE verb = $1`, *v.Text)
 	if row.Scan(&verbId) == sql.ErrNoRows {
-		// Insert the verb so the template has something to refer to.
 		row = db.QueryRow(
 			`
 			INSERT INTO verbs (verb, lang)
 				VALUES ($1, $2)
 			RETURNING id
-			`, *v.Text, *v.Lang)
+			`, verb.Text, verb.Language)
 		if row.Scan(&verbId) == sql.ErrNoRows {
-			return errors.New("Failed to insert verb " + *v.Text)
+			return verbId, errors.New("Failed to insert verb " + verb.Text)
 		}
 	}
+	return verbId, nil
+}
 
+type VerbTemplate string
+
+// AddTo adds the template of a verb to db.
+func (template VerbTemplate) AddTo(db *sql.DB, verbId int) error {
 	// TODO: Fix duplicate pkey errors.
 	// This problem is likely related to the incorrect template extraction.
 	// Try to fix that first.
@@ -55,7 +58,7 @@ func (v *Verb) AddTo(db *sql.DB) error {
 		`
 		INSERT INTO templates (verb_id, template)
 			VALUES($1, $2)
-		`, verbId, v.Template)
+		`, verbId, template)
 
 	return err
 }
