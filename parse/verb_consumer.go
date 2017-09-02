@@ -15,7 +15,9 @@ import (
 type VerbConsumer struct {
 	DB *sql.DB  // Database connection
 
-	// A pool of Workers that process Pages in separate threads
+	// Workers that process page content in goroutines
+	Workers []*Worker
+	// A pool of channels for workers that process Pages in separate threads
 	WorkerPool chan chan Page
 	// This buffered channel is where the jobs will pile up.
 	JobQueue chan Page
@@ -45,6 +47,7 @@ func NewVerbConsumer(db *sql.DB) *VerbConsumer {
 
 	for i := 0; i < workerCount; i++ {
 		worker := NewWorker(consumer, consumer.WorkerPool)
+		consumer.Workers = append(consumer.Workers, &worker)
 		worker.Start()
 	}
 	go consumer.coordinateJobs()
@@ -61,6 +64,13 @@ func (consumer *VerbConsumer) coordinateJobs() {
 				worker <- job
 			}(job)
 		}
+	}
+}
+
+// Wait requests that all workers finish processing page content.
+func (consumer *VerbConsumer) Wait() {
+	for i := range consumer.Workers {
+		consumer.Workers[i].Stop()
 	}
 }
 
