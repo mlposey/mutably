@@ -51,9 +51,6 @@ type VerbTemplate string
 
 // AddTo adds the template of a verb to db.
 func (template VerbTemplate) AddTo(db *sql.DB, verbId int) error {
-	// TODO: Fix duplicate pkey errors.
-	// This problem is likely related to the incorrect template extraction.
-	// Try to fix that first.
 	_, err := db.Exec(
 		`
 		INSERT INTO templates (verb_id, template)
