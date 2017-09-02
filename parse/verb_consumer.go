@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"anvil/model"
 )
 
 // VerbConsumer adds verbs to a database.
@@ -103,7 +104,7 @@ func (consumer *VerbConsumer) scrape(page Page) {
 		if strings.Contains(consumer.CurrentSection, "===Verb===") {
 			consumer.VerbCount++
 
-			verb := Verb{
+			verb := model.Verb{
 				Language: extractLanguage(content, languageHeaders[i]),
 				Text: page.Title,
 			}
@@ -137,17 +138,17 @@ func (consumer *VerbConsumer) scrape(page Page) {
 
 // GetTemplates creates a VerbTemplate for each unique verb template in the
 // current section.
-func (consumer *VerbConsumer) GetTemplates() []VerbTemplate {
+func (consumer *VerbConsumer) GetTemplates() []model.VerbTemplate {
 	templates := consumer.templatePattern.FindAllString(
 		consumer.CurrentSection, -1)
 
-	var verbTemplates []VerbTemplate
+	var verbTemplates []model.VerbTemplate
 	haveSeen := make(map[string]bool)
 
 	// Some sections have repeat template definitions; ignore duplicates.
 	for _, template := range templates {
 		if !haveSeen[template] {
-			verbTemplates = append(verbTemplates, VerbTemplate(template))
+			verbTemplates = append(verbTemplates, model.VerbTemplate(template))
 			haveSeen[template] = true
 		}
 	}
@@ -156,8 +157,8 @@ func (consumer *VerbConsumer) GetTemplates() []VerbTemplate {
 }
 
 // Find the language header in str.
-func extractLanguage(str *string, indices []int) Language {
-	return Language(strings.ToLower((*str)[indices[0]+2 : indices[1]-3]))
+func extractLanguage(str *string, indices []int) model.Language {
+	return model.Language(strings.ToLower((*str)[indices[0]+2 : indices[1]-3]))
 }
 
 // ---------------- Multithreading Logic ----------------

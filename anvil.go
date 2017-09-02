@@ -4,8 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"anvil/view"
-	"anvil/db"
 	"anvil/parse"
+	"anvil/model"
 	"os"
 	"database/sql"
 )
@@ -72,7 +72,7 @@ func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string, dbPort *uint) (*os.
 		os.Exit(1)
 	}
 
-	key := db.KeyRing{
+	key := model.KeyRing{
 		Database: *dbName,
 		Host: 	  *dbHost,
 		Port: 	  *dbPort,
