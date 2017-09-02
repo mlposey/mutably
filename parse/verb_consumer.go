@@ -29,11 +29,6 @@ type VerbConsumer struct {
 	languagePattern *regexp.Regexp
 	// Pattern for verb templates
 	templatePattern *regexp.Regexp
-
-	// These are really only useful for testing.
-	// TODO: Test section and verb detection without these variables.
-	LanguageCount int
-	VerbCount int
 }
 
 func NewVerbConsumer(db *sql.DB) *VerbConsumer {
@@ -92,7 +87,6 @@ func (consumer *VerbConsumer) scrape(page Page) {
 	languageHeaders := consumer.languagePattern.FindAllStringIndex(*content, -1)
 
 	sectionCount := len(languageHeaders)
-	consumer.LanguageCount = sectionCount
 
 	// Section content exists between two language headers. Thus, we must
 	// create a fake header at the end to grab the last section.
@@ -102,8 +96,6 @@ func (consumer *VerbConsumer) scrape(page Page) {
 		consumer.CurrentSection = (*content)[languageHeaders[i][1]:languageHeaders[i + 1][0]]
 
 		if strings.Contains(consumer.CurrentSection, "===Verb===") {
-			consumer.VerbCount++
-
 			verb := model.Verb{
 				Language: extractLanguage(content, languageHeaders[i]),
 				Text: page.Title,
