@@ -5,12 +5,19 @@ import (
 	"regexp"
 	"database/sql"
 	"fmt"
+	"os"
+	"strconv"
 )
 
 // VerbConsumer adds verbs to a database.
 // See *VerbConsumer.Consume and parse.ProcessPages for context.
 type VerbConsumer struct {
 	DB *sql.DB  // Database connection
+
+	// A pool of Workers that process Pages in separate threads
+	WorkerPool chan chan Page
+	// This buffered channel is where the jobs will pile up.
+	JobQueue chan Page
 
 	// The section of the current language being processed
 	// This will change throughout the lifetime of Consume because
@@ -29,10 +36,35 @@ type VerbConsumer struct {
 }
 
 func NewVerbConsumer(db *sql.DB) *VerbConsumer {
-	return &VerbConsumer{
+	workerCount, _ := strconv.Atoi(os.Getenv("THREAD_COUNT"))
+	const queueSize = 1000
+
+	consumer := &VerbConsumer{
 		DB: db,
+		WorkerPool: make(chan chan Page, workerCount),
+		JobQueue: make(chan Page, queueSize),
 		languagePattern: regexp.MustCompile(`(==|^==)([\w ]+)(==$|==\s)`),
 		templatePattern: regexp.MustCompile(`{{2}[^{]*verb[^{]*}{2}`),
+	}
+
+	for i := 0; i < workerCount; i++ {
+		worker := NewWorker(consumer, consumer.WorkerPool)
+		worker.Start()
+	}
+	go consumer.coordinateJobs()
+
+	return consumer
+}
+
+func (consumer *VerbConsumer) coordinateJobs() {
+	for {
+		select {
+		case job := <-consumer.JobQueue:
+			go func(job Page) {
+				worker := <- consumer.WorkerPool
+				worker <- job
+			}(job)
+		}
 	}
 }
 
@@ -42,6 +74,14 @@ func NewVerbConsumer(db *sql.DB) *VerbConsumer {
 // metadata are inserted in the database defined by consumer.Key. Pages
 // that do not contain verb definitions are ignored.
 func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
+
+	// A worker will pick this job up and process page with *VerbConsumer.scrape.
+	consumer.JobQueue <- page
+
+	return true, nil
+}
+
+func (consumer *VerbConsumer) scrape(page Page) {
 	content := &page.Revision.Text
 
 	// The contents of the page are split into sections that each start
@@ -85,7 +125,6 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 			}
 		}
 	}
-	return true, nil
 }
 
 // GetTemplates creates a *Verb for each unique verb template in the current section.
@@ -109,4 +148,47 @@ func (consumer *VerbConsumer) GetTemplates(verb *string, language *Language) []*
 // Find the language header in str.
 func extractLanguage(str *string, indices []int) Language {
 	return Language(strings.ToLower((*str)[indices[0]+2 : indices[1]-3]))
+}
+
+// ---------------- Multithreading Logic ----------------
+
+// A Worker takes care of the verb consumption process for a page.
+type Worker struct {
+	Consumer *VerbConsumer
+	JobPool  chan chan Page
+	Job      chan Page
+	stop     chan bool
+}
+
+// NewWorker creates a worker ready to accept jobs from jobPool.
+func NewWorker(consumer *VerbConsumer, jobPool chan chan Page) Worker {
+	return Worker{
+		Consumer: consumer,
+		JobPool:  jobPool,
+		Job:      make(chan Page),
+		stop:     make(chan bool),
+	}
+}
+
+func (worker Worker) Start() {
+	go func() {
+		for {
+			// Ask the main pool for work.
+			worker.JobPool <- worker.Job
+
+			select {
+			case page := <- worker.Job:
+				worker.Consumer.scrape(page)
+
+			case <- worker.stop:
+				return
+			}
+		}
+	}()
+}
+
+func (worker Worker) Stop() {
+	go func() {
+		worker.stop <- true
+	}()
 }
