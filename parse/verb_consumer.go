@@ -88,14 +88,19 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 	return true, nil
 }
 
-// GetTemplates creates a *Verb for each verb template in the current section.
+// GetTemplates creates a *Verb for each unique verb template in the current section.
 func (consumer *VerbConsumer) GetTemplates(verb *string, language *Language) []*Verb {
 	templates := consumer.templatePattern.FindAllString(
 		consumer.CurrentSection, -1)
 
 	var verbs []*Verb
+	haveSeen := make(map[string]bool)
+
 	for _, template := range templates {
-		verbs = append(verbs, &Verb{Text:verb, Lang:language, Template:template})
+		if !haveSeen[template] {
+			verbs = append(verbs, &Verb{Text:verb, Lang:language, Template:template})
+			haveSeen[template] = true
+		}
 	}
 
 	return verbs
