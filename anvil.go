@@ -11,9 +11,20 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"runtime/pprof"
 )
 
 func main() {
+	profileFlag := flag.Bool("profile", false,
+		`Enable program profiling.
+		This uses Go's pprof library to profile program execution
+		and output results to profile.txt. To inspect the output, call
+		'go tool pprof profile.txt'.
+
+		Executing 'web' in the profiler will generate a callgraph
+		in your browser window. This feature requires graphviz, which
+		can be installed on Ubuntu by running 'sudo apt install graphviz'.`)
+
 	importFlag := flag.Bool("import", false,
 		`Import a .xml pages dump into a PostgreSQL database.
 		Takes the form -import -d [-host] [-port] -u -p pages-file
@@ -55,6 +66,12 @@ func main() {
 
 	if !*verboseFlag {
 		log.SetOutput(ioutil.Discard)
+	}
+
+	if *profileFlag {
+		profilingResults, _ := os.Create("profile.txt")
+		pprof.StartCPUProfile(profilingResults)
+		defer pprof.StopCPUProfile()
 	}
 
 	if *importFlag {
