@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
@@ -24,7 +25,11 @@ func main() {
 		large when uncompressed.
 
 	Example:
-		anvil -import -d=mutablydb -u=mutably -p=aPass latest-pages.xml`)
+		anvil -import -d=mutablydb -u=mutably -p=aPass latest-pages.xml`,
+	)
+
+	verboseFlag := flag.Bool("v", false, "Enable verbose logging")
+
 	dbNameFlag := flag.String("d",
 		"", "The database name")
 	dbUserFlag := flag.String("u", "",
@@ -44,6 +49,10 @@ func main() {
 	if flag.NFlag() == 0 {
 		fmt.Println("Run 'anvil -h' for usage details.")
 		return
+	}
+
+	if !*verboseFlag {
+		log.SetOutput(ioutil.Discard)
 	}
 
 	if *importFlag {
@@ -76,9 +85,7 @@ func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string, dbPort *uint) (*os.
 
 	file, err := os.Open(flag.Arg(0))
 	if err != nil {
-		fmt.Println("Failed to open file", flag.Arg(0))
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		log.Fatal(err.Error())
 	}
 
 	key := model.KeyRing{
@@ -91,8 +98,7 @@ func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string, dbPort *uint) (*os.
 
 	psqlDB, err := key.Validate()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		log.Fatal(err.Error())
 	}
 	return file, psqlDB
 }

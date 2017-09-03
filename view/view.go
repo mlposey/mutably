@@ -2,14 +2,16 @@ package view
 
 import (
 	"anvil/parse"
-	"os"
 	"fmt"
 	"github.com/fatih/color"
+	"log"
+	"os"
 )
 
 type PageViewer struct {
 	TargetPageTitle string
 }
+
 func (v *PageViewer) Consume(page parse.Page) (bool, error) {
 	if page.Title == v.TargetPageTitle {
 		fmt.Println(page)
@@ -23,7 +25,7 @@ func (v *PageViewer) Consume(page parse.Page) (bool, error) {
 func Search(filePath, title string) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		fmt.Println("Could not open file", filePath)
+		log.Fatal(err.Error())
 	}
 
 	color.Green("Starting search...")

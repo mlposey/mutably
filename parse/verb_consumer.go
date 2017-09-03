@@ -4,7 +4,7 @@ import (
 	"anvil/model"
 	"database/sql"
 	"errors"
-	"fmt"
+	"log"
 	"regexp"
 	"strings"
 )
@@ -123,13 +123,13 @@ func (consumer *VerbConsumer) scrape(page Page) {
 			// var itself) but not the tag. Either (a) create some temporary
 			// value to store in the tag column or (b) retrieve tags from the web.
 			if !verb.Language.ExistsIn(consumer.DB) {
-				fmt.Println("Language", verb.Language, "is undefined")
+				log.Println("Language", verb.Language, "is undefined")
 				continue
 			}
 
 			verbId, err := verb.TryInsert(consumer.DB)
 			if err != nil {
-				fmt.Println(err.Error())
+				log.Println(err.Error())
 				continue
 			}
 
@@ -138,7 +138,7 @@ func (consumer *VerbConsumer) scrape(page Page) {
 			for _, template := range verbTemplates {
 				err := template.AddTo(consumer.DB, verbId)
 				if err != nil {
-					fmt.Println(err.Error())
+					log.Println(err.Error())
 				}
 			}
 		}
