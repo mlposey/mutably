@@ -4,6 +4,7 @@ import (
 	"anvil/model"
 	"database/sql"
 	"errors"
+	"github.com/moovweb/rubex"
 	"log"
 	"regexp"
 	"strings"
@@ -33,8 +34,6 @@ type VerbConsumer struct {
 	// each page has many sections.
 	CurrentSection string
 
-	// Pattern for language headers
-	languagePattern *regexp.Regexp
 	// Pattern for verb templates
 	templatePattern *regexp.Regexp
 }
@@ -66,7 +65,6 @@ func NewVerbConsumer(db *sql.DB, threadCount, pageLimit int) (*VerbConsumer, err
 		PagesConsumed:   0,
 		WorkerPool:      make(chan chan Page, threadCount),
 		JobQueue:        make(chan Page, queueSize),
-		languagePattern: regexp.MustCompile(`(?m)^==[^=]+==\n`),
 		templatePattern: regexp.MustCompile(`{{2}[^{]*verb[^{]*}{2}`),
 	}
 
@@ -119,14 +117,14 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 	return true, nil
 }
 
-func (consumer *VerbConsumer) scrape(page Page) {
+func (consumer *VerbConsumer) scrape(page Page, languagePattern *rubex.Regexp) {
 	content := &page.Revision.Text
 
 	// The contents of the page are split into sections that each start
 	// with a language header.
 	// Each section describes the word as it exists in that language.
 	// An English section would start with a '==English==' header.
-	languageHeaders := consumer.languagePattern.FindAllStringIndex(*content, -1)
+	languageHeaders := languagePattern.FindAllStringIndex(*content, -1)
 
 	sectionCount := len(languageHeaders)
 
@@ -200,18 +198,25 @@ func extractLanguage(str *string, indices []int) model.Language {
 // A Worker takes care of the verb consumption process for a page.
 type Worker struct {
 	Consumer *VerbConsumer
-	JobPool  chan chan Page
-	Job      chan Page
-	stop     chan bool
+
+	// I don't think the rubex Regexp is thread safe. There were some
+	// weird errors when it replaced the regexp version. Basically,
+	// that's why this is here and not in VerbConsumer.
+	languagePattern *rubex.Regexp
+
+	JobPool chan chan Page
+	Job     chan Page
+	stop    chan bool
 }
 
 // NewWorker creates a worker ready to accept jobs from jobPool.
 func NewWorker(consumer *VerbConsumer, jobPool chan chan Page) Worker {
 	return Worker{
-		Consumer: consumer,
-		JobPool:  jobPool,
-		Job:      make(chan Page),
-		stop:     make(chan bool),
+		Consumer:        consumer,
+		languagePattern: rubex.MustCompile(`(?m)^==[^=]+==\n`),
+		JobPool:         jobPool,
+		Job:             make(chan Page),
+		stop:            make(chan bool),
 	}
 }
 
@@ -223,7 +228,7 @@ func (worker Worker) Start() {
 
 			select {
 			case page := <-worker.Job:
-				worker.Consumer.scrape(page)
+				worker.Consumer.scrape(page, worker.languagePattern)
 
 			case <-worker.stop:
 				return
