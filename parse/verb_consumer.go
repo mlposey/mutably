@@ -58,15 +58,15 @@ func NewVerbConsumer(db *sql.DB, threadCount, pageLimit int) (*VerbConsumer, err
 
 	// Pulled this bad boy out of a hat. Remember: it's not magic
 	// if you give it a name ;D
-	const queueSize = 1000
+	const queueSize = 5000
 
 	consumer := &VerbConsumer{
-		DB:              db,
-		PageLimit:       pageLimit,
-		PagesConsumed:   0,
-		WorkerPool:      make(chan chan Page, threadCount),
-		JobQueue:        make(chan Page, queueSize),
-		languagePattern: regexp.MustCompile(`(==|^==)([\w ]+)(==$|==\s)`),
+		DB:            db,
+		PageLimit:     pageLimit,
+		PagesConsumed: 0,
+		WorkerPool:    make(chan chan Page, threadCount),
+		JobQueue:      make(chan Page, queueSize),
+		languagePattern: regexp.MustCompile(`(?m)^==[^=]+==\n`),
 		templatePattern: regexp.MustCompile(`{{2}[^{]*verb[^{]*}{2}`),
 	}
 
