@@ -1,18 +1,18 @@
 package parse
 
 import (
-	"strings"
-	"regexp"
-	"database/sql"
-	"fmt"
 	"anvil/model"
-        "errors"
+	"database/sql"
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
 )
 
 // VerbConsumer adds verbs to a database.
 // See *VerbConsumer.Consume and parse.ProcessPages for context.
 type VerbConsumer struct {
-	DB *sql.DB  // Database connection
+	DB *sql.DB // Database connection
 
 	// Workers that process page content in goroutines
 	Workers []*Worker
@@ -36,18 +36,18 @@ type VerbConsumer struct {
 // uses threadCount threads.
 // The connection to db must be valid and threadCount must be > 0
 func NewVerbConsumer(db *sql.DB, threadCount int) (*VerbConsumer, error) {
-        if threadCount < 1 {
-                return nil, errors.New("Thread count for VerbConsumer must be at least 1")
-        }
+	if threadCount < 1 {
+		return nil, errors.New("Thread count for VerbConsumer must be at least 1")
+	}
 
 	// Pulled this bad boy out of a hat. Remember: it's not magic
-        // if you give it a name ;D
+	// if you give it a name ;D
 	const queueSize = 1000
 
 	consumer := &VerbConsumer{
-		DB: db,
-		WorkerPool: make(chan chan Page, threadCount),
-		JobQueue: make(chan Page, queueSize),
+		DB:              db,
+		WorkerPool:      make(chan chan Page, threadCount),
+		JobQueue:        make(chan Page, queueSize),
 		languagePattern: regexp.MustCompile(`(==|^==)([\w ]+)(==$|==\s)`),
 		templatePattern: regexp.MustCompile(`{{2}[^{]*verb[^{]*}{2}`),
 	}
@@ -67,7 +67,7 @@ func (consumer *VerbConsumer) coordinateJobs() {
 		select {
 		case job := <-consumer.JobQueue:
 			go func(job Page) {
-				worker := <- consumer.WorkerPool
+				worker := <-consumer.WorkerPool
 				worker <- job
 			}(job)
 		}
@@ -109,13 +109,13 @@ func (consumer *VerbConsumer) scrape(page Page) {
 	// create a fake header at the end to grab the last section.
 	languageHeaders = append(languageHeaders, []int{len(*content), 0})
 
-	for i := 0; i < sectionCount - 1; i++ {
-		consumer.CurrentSection = (*content)[languageHeaders[i][1]:languageHeaders[i + 1][0]]
+	for i := 0; i < sectionCount-1; i++ {
+		consumer.CurrentSection = (*content)[languageHeaders[i][1]:languageHeaders[i+1][0]]
 
 		if strings.Contains(consumer.CurrentSection, "===Verb===") {
 			verb := model.Verb{
 				Language: extractLanguage(content, languageHeaders[i]),
-				Text: page.Title,
+				Text:     page.Title,
 			}
 
 			// TODO: Insert new languages into DB.
@@ -197,10 +197,10 @@ func (worker Worker) Start() {
 			worker.JobPool <- worker.Job
 
 			select {
-			case page := <- worker.Job:
+			case page := <-worker.Job:
 				worker.Consumer.scrape(page)
 
-			case <- worker.stop:
+			case <-worker.stop:
 				return
 			}
 		}

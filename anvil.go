@@ -1,20 +1,20 @@
 package main
 
 import (
+	"anvil/model"
+	"anvil/parse"
+	"anvil/view"
+	"database/sql"
 	"flag"
 	"fmt"
-	"anvil/view"
-	"anvil/parse"
-	"anvil/model"
+	"log"
 	"os"
-	"database/sql"
-        "runtime"
-        "log"
+	"runtime"
 )
 
 func main() {
 	importFlag := flag.Bool("import", false,
-	`Import a .xml pages dump into a PostgreSQL database.
+		`Import a .xml pages dump into a PostgreSQL database.
 		Takes the form -import -d [-host] [-port] -u -p pages-file
 		The database (-d), user (-u), password (-p) and pages file are
 		required flags. Host and port are optional and will default to
@@ -51,9 +51,9 @@ func main() {
 			dbUserFlag, dbPwdFlag, dbPortFlag)
 
 		consumer, err := parse.NewVerbConsumer(psqlDB, runtime.GOMAXPROCS(0))
-                if err != nil {
-                        log.Fatal(err)
-                }
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		parse.ProcessPages(file, consumer)
 		consumer.Wait()
@@ -83,9 +83,9 @@ func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string, dbPort *uint) (*os.
 
 	key := model.KeyRing{
 		Database: *dbName,
-		Host: 	  *dbHost,
-		Port: 	  *dbPort,
-		User: 	  *dbUser,
+		Host:     *dbHost,
+		Port:     *dbPort,
+		User:     *dbUser,
 		Password: *dbPwd,
 	}
 
