@@ -14,6 +14,13 @@ import (
 type VerbConsumer struct {
 	DB *sql.DB // Database connection
 
+	// Stop processing pages after Consume is called this many times
+	// A value of -1 indicates no limit on the amount of pages consumed.
+	PageLimit int
+	// The number of pages that have been sent to works. Some may
+	// not be fully processed, even if the value has been accounted for.
+	PagesConsumed int
+
 	// Workers that process page content in goroutines
 	Workers []*Worker
 	// A pool of channels for workers that process Pages in separate threads
@@ -34,10 +41,19 @@ type VerbConsumer struct {
 
 // NewVerbConsumer creates a new *VerbConsumer that is connected to db and
 // uses threadCount threads.
-// The connection to db must be valid and threadCount must be > 0
-func NewVerbConsumer(db *sql.DB, threadCount int) (*VerbConsumer, error) {
+//
+// The connection to db must be valid and threadCount must be > 0.
+//
+// pageLimit indicates how many pages should be consumed. If set to -1,
+// Consume will always return a true value. When set to N, Consume will
+// begin returning false after it has been called N times.
+// Valid values are: {-1} U [1, INT_MAX]
+func NewVerbConsumer(db *sql.DB, threadCount, pageLimit int) (*VerbConsumer, error) {
 	if threadCount < 1 {
 		return nil, errors.New("Thread count for VerbConsumer must be at least 1")
+	}
+	if pageLimit < -1 {
+		return nil, errors.New("pageLimit must be in {-1} U [1, INT_MAX]")
 	}
 
 	// Pulled this bad boy out of a hat. Remember: it's not magic
@@ -46,6 +62,8 @@ func NewVerbConsumer(db *sql.DB, threadCount int) (*VerbConsumer, error) {
 
 	consumer := &VerbConsumer{
 		DB:              db,
+		PageLimit:       pageLimit,
+		PagesConsumed:   0,
 		WorkerPool:      make(chan chan Page, threadCount),
 		JobQueue:        make(chan Page, queueSize),
 		languagePattern: regexp.MustCompile(`(==|^==)([\w ]+)(==$|==\s)`),
@@ -87,6 +105,12 @@ func (consumer *VerbConsumer) Wait() {
 // metadata are inserted in the database defined by consumer.Key. Pages
 // that do not contain verb definitions are ignored.
 func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
+	if consumer.PagesConsumed >= consumer.PageLimit {
+		return false, errors.New("VerbConsumer is no longer accepting Pages.")
+	}
+	if consumer.PageLimit != -1 {
+		consumer.PagesConsumed++
+	}
 
 	// A worker will pick this job up and process page with *VerbConsumer.scrape
 	consumer.JobQueue <- page

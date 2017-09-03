@@ -28,8 +28,10 @@ func main() {
 		anvil -import -d=mutablydb -u=mutably -p=aPass latest-pages.xml`,
 	)
 
-	verboseFlag := flag.Bool("v", false, "Enable verbose logging")
-
+	limitFlag := flag.Int("limit", -1,
+		"Limit import to processing N pages")
+	verboseFlag := flag.Bool("v", false,
+		"Enable verbose logging")
 	dbNameFlag := flag.String("d",
 		"", "The database name")
 	dbUserFlag := flag.String("u", "",
@@ -59,7 +61,8 @@ func main() {
 		file, psqlDB := parseImportFlags(dbNameFlag, dbHostFlag,
 			dbUserFlag, dbPwdFlag, dbPortFlag)
 
-		consumer, err := parse.NewVerbConsumer(psqlDB, runtime.GOMAXPROCS(0))
+		consumer, err := parse.NewVerbConsumer(psqlDB, runtime.GOMAXPROCS(0),
+			*limitFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
