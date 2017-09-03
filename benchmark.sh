@@ -1,8 +1,8 @@
 #!/bin/bash
 # Performs a benchmark of $LIMIT page insertions.
 #
-# You'll want to set the values of DB, USER, and PASSWORD
-# in this file before using.
+# You'll want to set the values of DB, USER, PASSWORD,
+# and SOURCE in this file before using.
 #
 # The result of the time command is output to a text file
 # that has the name of your current git branch. Profile
@@ -14,6 +14,7 @@ LIMIT=100000
 # DB=your-db
 # USER=your-db-user
 # PASSWORD=your-db-user-password
+# SOURCE=your-pages-file.xml
 
 if [[ -z ${DB+x} || -z ${USER+x} || -z ${PASSWORD+x} ]]; then
     echo "Modify the database connection parameters in this file."
@@ -29,6 +30,6 @@ psql -U $USER -c "delete from verbs;"
 go build
 /usr/bin/time -o time_${CURRENT_BRANCH}.txt \
   ./anvil -import -profile -limit=$LIMIT -d=$DB -u=$USER -p=$PASSWORD \
-  ~/data/wiktionary/enwiktionary_latest/enwiktionary-latest-pages-meta-current.xml
+  $SOURCE
 
 psql -U $USER -c "delete from verbs;"
