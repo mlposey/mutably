@@ -3,8 +3,11 @@
 #
 # You'll want to set the values of DB, USER, and PASSWORD
 # in this file before using.
-# Benchmark results are output to a text file with the
-# name of your current git branch.
+#
+# The result of the time command is output to a text file
+# that has the name of your current git branch. Profile
+# information is output to the default destination
+# specified by the anvil source code.
 
 LIMIT=100000
 
@@ -24,8 +27,8 @@ CURRENT_BRANCH=$(git branch | grep '[*] .*$' | cut -c3-)
 psql -U $USER -c "delete from verbs;"
 
 go build
-time ./anvil -import -limit=$LIMIT -d=$DB -u=$USER -p=$PASSWORD \
-    ~/data/wiktionary/enwiktionary_latest/enwiktionary-latest-pages-meta-current.xml \
-    > ${CURRENT_BRANCH}.txt
+/usr/bin/time -o time_${CURRENT_BRANCH}.txt \
+  ./anvil -import -profile -limit=$LIMIT -d=$DB -u=$USER -p=$PASSWORD \
+  ~/data/wiktionary/enwiktionary_latest/enwiktionary-latest-pages-meta-current.xml
 
 psql -U $USER -c "delete from verbs;"
