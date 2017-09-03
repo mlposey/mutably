@@ -61,11 +61,11 @@ func NewVerbConsumer(db *sql.DB, threadCount, pageLimit int) (*VerbConsumer, err
 	const queueSize = 5000
 
 	consumer := &VerbConsumer{
-		DB:            db,
-		PageLimit:     pageLimit,
-		PagesConsumed: 0,
-		WorkerPool:    make(chan chan Page, threadCount),
-		JobQueue:      make(chan Page, queueSize),
+		DB:              db,
+		PageLimit:       pageLimit,
+		PagesConsumed:   0,
+		WorkerPool:      make(chan chan Page, threadCount),
+		JobQueue:        make(chan Page, queueSize),
 		languagePattern: regexp.MustCompile(`(?m)^==[^=]+==\n`),
 		templatePattern: regexp.MustCompile(`{{2}[^{]*verb[^{]*}{2}`),
 	}
@@ -105,7 +105,8 @@ func (consumer *VerbConsumer) Wait() {
 // metadata are inserted in the database defined by consumer.Key. Pages
 // that do not contain verb definitions are ignored.
 func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
-	if consumer.PagesConsumed >= consumer.PageLimit {
+	if consumer.PagesConsumed >= consumer.PageLimit &&
+		consumer.PageLimit != -1 {
 		return false, errors.New("VerbConsumer is no longer accepting Pages.")
 	}
 	if consumer.PageLimit != -1 {
