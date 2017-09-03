@@ -8,6 +8,8 @@ import (
 	"anvil/model"
 	"os"
 	"database/sql"
+        "runtime"
+        "log"
 )
 
 func main() {
@@ -48,9 +50,12 @@ func main() {
 		file, psqlDB := parseImportFlags(dbNameFlag, dbHostFlag,
 			dbUserFlag, dbPwdFlag, dbPortFlag)
 
-		consumer := parse.NewVerbConsumer(psqlDB)
-		parse.ProcessPages(file, consumer)
+		consumer, err := parse.NewVerbConsumer(psqlDB, runtime.GOMAXPROCS(0))
+                if err != nil {
+                        log.Fatal(err)
+                }
 
+		parse.ProcessPages(file, consumer)
 		consumer.Wait()
 
 	} else if *viewPageFlag {

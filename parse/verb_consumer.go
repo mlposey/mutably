@@ -5,9 +5,8 @@ import (
 	"regexp"
 	"database/sql"
 	"fmt"
-	"os"
-	"strconv"
 	"anvil/model"
+        "errors"
 )
 
 // VerbConsumer adds verbs to a database.
@@ -33,26 +32,34 @@ type VerbConsumer struct {
 	templatePattern *regexp.Regexp
 }
 
-func NewVerbConsumer(db *sql.DB) *VerbConsumer {
-	workerCount, _ := strconv.Atoi(os.Getenv("THREAD_COUNT"))
+// NewVerbConsumer creates a new *VerbConsumer that is connected to db and
+// uses threadCount threads.
+// The connection to db must be valid and threadCount must be > 0
+func NewVerbConsumer(db *sql.DB, threadCount int) (*VerbConsumer, error) {
+        if threadCount < 1 {
+                return nil, errors.New("Thread count for VerbConsumer must be at least 1")
+        }
+
+	// Pulled this bad boy out of a hat. Remember: it's not magic
+        // if you give it a name ;D
 	const queueSize = 1000
 
 	consumer := &VerbConsumer{
 		DB: db,
-		WorkerPool: make(chan chan Page, workerCount),
+		WorkerPool: make(chan chan Page, threadCount),
 		JobQueue: make(chan Page, queueSize),
 		languagePattern: regexp.MustCompile(`(==|^==)([\w ]+)(==$|==\s)`),
 		templatePattern: regexp.MustCompile(`{{2}[^{]*verb[^{]*}{2}`),
 	}
 
-	for i := 0; i < workerCount; i++ {
+	for i := 0; i < threadCount; i++ {
 		worker := NewWorker(consumer, consumer.WorkerPool)
 		consumer.Workers = append(consumer.Workers, &worker)
 		worker.Start()
 	}
 	go consumer.coordinateJobs()
 
-	return consumer
+	return consumer, nil
 }
 
 func (consumer *VerbConsumer) coordinateJobs() {
