@@ -17,7 +17,6 @@ type Page struct {
 	XMLName xml.Name `xml:"page"`
 
 	Title    string   `xml:"title"`
-	ID       int      `xml:"id"`
 	Revision Revision `xml:"revision"`
 }
 
@@ -29,9 +28,6 @@ type Page struct {
 type Revision struct {
 	XMLName xml.Name `xml:"revision"`
 
-	ID int `xml:"id"`
-	// An explanation of what changed in this revision
-	Comment string `xml:"comment"`
 	// The contents of the revision (i.e., body of the webpage)
 	Text string `xml:"text"`
 }
