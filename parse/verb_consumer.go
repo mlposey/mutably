@@ -6,14 +6,14 @@ import (
 	"errors"
 	"github.com/moovweb/rubex"
 	"log"
-	"regexp"
 	"strings"
 )
 
 // VerbConsumer adds verbs to a database.
 // See *VerbConsumer.Consume and parse.ProcessPages for context.
 type VerbConsumer struct {
-	DB *sql.DB // Database connection
+	// Database connection
+	DB *sql.DB
 
 	// Stop processing pages after Consume is called this many times
 	// A value of -1 indicates no limit on the amount of pages consumed.
@@ -33,9 +33,6 @@ type VerbConsumer struct {
 	// This will change throughout the lifetime of Consume because
 	// each page has many sections.
 	CurrentSection string
-
-	// Pattern for verb templates
-	templatePattern *regexp.Regexp
 }
 
 // NewVerbConsumer creates a new *VerbConsumer that is connected to db and
@@ -60,12 +57,11 @@ func NewVerbConsumer(db *sql.DB, threadCount, pageLimit int) (*VerbConsumer, err
 	const queueSize = 5000
 
 	consumer := &VerbConsumer{
-		DB:              db,
-		PageLimit:       pageLimit,
-		PagesConsumed:   0,
-		WorkerPool:      make(chan chan Page, threadCount),
-		JobQueue:        make(chan Page, queueSize),
-		templatePattern: regexp.MustCompile(`{{2}[^{]*verb[^{]*}{2}`),
+		DB:            db,
+		PageLimit:     pageLimit,
+		PagesConsumed: 0,
+		WorkerPool:    make(chan chan Page, threadCount),
+		JobQueue:      make(chan Page, queueSize),
 	}
 
 	for i := 0; i < threadCount; i++ {
@@ -117,7 +113,8 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 	return true, nil
 }
 
-func (consumer *VerbConsumer) scrape(page Page, languagePattern *rubex.Regexp) {
+func (consumer *VerbConsumer) scrape(page Page, languagePattern,
+	templatePattern *rubex.Regexp) {
 	content := &page.Revision.Text
 
 	// The contents of the page are split into sections that each start
@@ -156,7 +153,7 @@ func (consumer *VerbConsumer) scrape(page Page, languagePattern *rubex.Regexp) {
 				continue
 			}
 
-			verbTemplates := consumer.GetTemplates()
+			verbTemplates := consumer.GetTemplates(templatePattern)
 
 			for _, template := range verbTemplates {
 				err := template.AddTo(consumer.DB, verbId)
@@ -170,9 +167,8 @@ func (consumer *VerbConsumer) scrape(page Page, languagePattern *rubex.Regexp) {
 
 // GetTemplates creates a VerbTemplate for each unique verb template in the
 // current section.
-func (consumer *VerbConsumer) GetTemplates() []model.VerbTemplate {
-	templates := consumer.templatePattern.FindAllString(
-		consumer.CurrentSection, -1)
+func (consumer *VerbConsumer) GetTemplates(p *rubex.Regexp) []model.VerbTemplate {
+	templates := p.FindAllString(consumer.CurrentSection, -1)
 
 	var verbTemplates []model.VerbTemplate
 	haveSeen := make(map[string]bool)
@@ -199,10 +195,10 @@ func extractLanguage(str *string, indices []int) model.Language {
 type Worker struct {
 	Consumer *VerbConsumer
 
-	// I don't think the rubex Regexp is thread safe. There were some
-	// weird errors when it replaced the regexp version. Basically,
-	// that's why this is here and not in VerbConsumer.
+	// Pattern for language headers
 	languagePattern *rubex.Regexp
+	// Pattern for verb templates
+	templatePattern *rubex.Regexp
 
 	JobPool chan chan Page
 	Job     chan Page
@@ -214,6 +210,7 @@ func NewWorker(consumer *VerbConsumer, jobPool chan chan Page) Worker {
 	return Worker{
 		Consumer:        consumer,
 		languagePattern: rubex.MustCompile(`(?m)^==[^=]+==\n`),
+		templatePattern: rubex.MustCompile(`{{2}[^{]*verb[^{]*}{2}`),
 		JobPool:         jobPool,
 		Job:             make(chan Page),
 		stop:            make(chan bool),
@@ -228,7 +225,8 @@ func (worker Worker) Start() {
 
 			select {
 			case page := <-worker.Job:
-				worker.Consumer.scrape(page, worker.languagePattern)
+				worker.Consumer.scrape(page, worker.languagePattern,
+					worker.templatePattern)
 
 			case <-worker.stop:
 				return
@@ -238,7 +236,5 @@ func (worker Worker) Start() {
 }
 
 func (worker Worker) Stop() {
-	go func() {
-		worker.stop <- true
-	}()
+	worker.stop <- true
 }
