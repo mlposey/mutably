@@ -1,8 +1,10 @@
-FROM golang:1.9-alpine
+FROM golang:1.9
 
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
   git \
-  bash
+  bash \
+  gcc \
+  libonig4 libonig-dev
 
 WORKDIR /page-archive
 VOLUME ["/page-archive"]
