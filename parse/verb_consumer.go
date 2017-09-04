@@ -75,14 +75,11 @@ func NewVerbConsumer(db *sql.DB, threadCount, pageLimit int) (*VerbConsumer, err
 }
 
 func (consumer *VerbConsumer) coordinateJobs() {
-	for {
-		select {
-		case job := <-consumer.JobQueue:
-			go func(job Page) {
-				worker := <-consumer.WorkerPool
-				worker <- job
-			}(job)
-		}
+	for job := range consumer.JobQueue {
+		go func(job Page) {
+			worker := <-consumer.WorkerPool
+			worker <- job
+		}(job)
 	}
 }
 
