@@ -207,7 +207,7 @@ func NewWorker(consumer *VerbConsumer, jobPool chan chan Page) Worker {
 	return Worker{
 		Consumer:        consumer,
 		languagePattern: rubex.MustCompile(`(?m)^==[^=]+==\n`),
-		templatePattern: rubex.MustCompile(`{{2}[^{]*verb[^{]*}{2}`),
+		templatePattern: rubex.MustCompile(`(?m)^{{2}[^{]+verb[^{]+}{2}$`),
 		JobPool:         jobPool,
 		Job:             make(chan Page),
 		stop:            make(chan bool),
