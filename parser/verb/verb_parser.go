@@ -4,17 +4,10 @@ import (
 	"anvil/model"
 	"anvil/parser"
 	"errors"
-	"github.com/moovweb/rubex"
-	"log"
-	"strings"
 )
 
-// VerbParser adds verbs to a database.
-// See *VerbParser.Parse and parse.ProcessPages for context.
+// VerbParser uses parallel workers to add verbs to a database.
 type VerbParser struct {
-	// Database connection
-	DB model.Database
-
 	// Stop processing pages after Parse is called this many times
 	// A value of -1 indicates no limit on the amount of pages consumed.
 	PageLimit int
@@ -22,18 +15,12 @@ type VerbParser struct {
 	// not be fully processed, even if the value has been accounted for.
 	PagesConsumed int
 
-	// Workers that process page content in goroutines
-	Workers []*Worker
+	// workers that process page content in goroutines
+	Workers []*worker
 	// A pool of channels for workers that process Pages in separate threads
 	WorkerPool chan chan parser.Page
 	// This buffered channel is where the jobs will pile up.
 	JobQueue chan parser.Page
-
-	// TODO: This should be in Worker.
-	// The section of the current language being processed
-	// This will change throughout the lifetime of Parse because
-	// each page has many sections.
-	CurrentSection string
 }
 
 // NewVerbParser creates a new *VerbParser that is connected to db and
@@ -59,7 +46,6 @@ func NewVerbParser(db model.Database, threadCount,
 	const queueSize = 5000
 
 	vparser := &VerbParser{
-		DB:            db,
 		PageLimit:     pageLimit,
 		PagesConsumed: 0,
 		WorkerPool:    make(chan chan parser.Page, threadCount),
@@ -67,7 +53,7 @@ func NewVerbParser(db model.Database, threadCount,
 	}
 
 	for i := 0; i < threadCount; i++ {
-		worker := NewWorker(vparser, vparser.WorkerPool)
+		worker := NewWorker(db, vparser.WorkerPool)
 		vparser.Workers = append(vparser.Workers, &worker)
 		worker.Start()
 	}
@@ -87,6 +73,8 @@ func (vparser *VerbParser) coordinateJobs() {
 
 // Wait requests that all workers finish processing page content.
 func (vparser *VerbParser) Wait() {
+	// TODO: Determine if workers are actually finishing the work.
+	// There may be jobs left in the pool. Figure it out, yo.
 	for i := range vparser.Workers {
 		vparser.Workers[i].Stop()
 	}
@@ -110,80 +98,4 @@ func (vparser *VerbParser) Parse(page parser.Page) (bool, error) {
 	vparser.JobQueue <- page
 
 	return true, nil
-}
-
-func (vparser *VerbParser) scrape(page parser.Page, languagePattern,
-	templatePattern *rubex.Regexp) {
-	content := &page.Revision.Text
-
-	// The contents of the page are split into sections that each start
-	// with a language header.
-	// Each section describes the word as it exists in that language.
-	// An English section would start with a '==English==' header.
-	languageHeaders := languagePattern.FindAllStringIndex(*content, -1)
-
-	sectionCount := len(languageHeaders)
-
-	// Section content exists between two language headers. Thus, we must
-	// create a fake header at the end to grab the last section.
-	languageHeaders = append(languageHeaders, []int{len(*content), 0})
-
-	for i := 0; i < sectionCount-1; i++ {
-		vparser.CurrentSection = (*content)[languageHeaders[i][1]:languageHeaders[i+1][0]]
-
-		if strings.Contains(vparser.CurrentSection, "===Verb===") {
-			verb := model.Verb{
-				Language: extractLanguage(content, languageHeaders[i]),
-				Text:     page.Title,
-			}
-
-			// TODO: Insert new languages into DB.
-			// The problem is that we know the description (i.e., the language
-			// var itself) but not the tag. Either (a) create some temporary
-			// value to store in the tag column or (b) retrieve tags from the web.
-			if !vparser.DB.LanguageExists(verb.Language) {
-				log.Println("Language", verb.Language, "is undefined")
-				continue
-			}
-
-			verbId, err := vparser.DB.InsertVerb(verb)
-			if err != nil {
-				log.Println(err.Error())
-				continue
-			}
-
-			verbTemplates := vparser.GetTemplates(templatePattern)
-
-			for _, template := range verbTemplates {
-				err := vparser.DB.InsertTemplate(template, verbId)
-				if err != nil {
-					log.Println(err.Error())
-				}
-			}
-		}
-	}
-}
-
-// GetTemplates creates a VerbTemplate for each unique verb template in the
-// current section.
-func (vparser *VerbParser) GetTemplates(p *rubex.Regexp) []model.VerbTemplate {
-	templates := p.FindAllString(vparser.CurrentSection, -1)
-
-	var verbTemplates []model.VerbTemplate
-	haveSeen := make(map[string]bool)
-
-	// Some sections have repeat template definitions; ignore duplicates.
-	for _, template := range templates {
-		if !haveSeen[template] {
-			verbTemplates = append(verbTemplates, model.VerbTemplate(template))
-			haveSeen[template] = true
-		}
-	}
-
-	return verbTemplates
-}
-
-// Find the language header in str.
-func extractLanguage(str *string, indices []int) model.Language {
-	return model.Language(strings.ToLower((*str)[indices[0]+2 : indices[1]-3]))
 }
