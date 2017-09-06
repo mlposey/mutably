@@ -7,7 +7,7 @@ import (
 
 // Worker handles a unit of VerbParser's work in parallel.
 type Worker struct {
-	Consumer *VerbParser
+	VParser *VerbParser
 
 	// Pattern for language headers
 	languagePattern *rubex.Regexp
@@ -20,9 +20,9 @@ type Worker struct {
 }
 
 // NewWorker creates a worker ready to accept jobs from jobPool.
-func NewWorker(consumer *VerbParser, jobPool chan chan parser.Page) Worker {
+func NewWorker(vparser *VerbParser, jobPool chan chan parser.Page) Worker {
 	return Worker{
-		Consumer:        consumer,
+		VParser:         vparser,
 		languagePattern: rubex.MustCompile(`(?m)^==[^=]+==\n`),
 		templatePattern: rubex.MustCompile(`(?m)^{{2}[^{]+verb[^{]+}{2}$`),
 		JobPool:         jobPool,
@@ -40,7 +40,7 @@ func (worker Worker) Start() {
 
 			select {
 			case page := <-worker.Job:
-				worker.Consumer.scrape(page, worker.languagePattern,
+				worker.VParser.scrape(page, worker.languagePattern,
 					worker.templatePattern)
 
 			case <-worker.stop:

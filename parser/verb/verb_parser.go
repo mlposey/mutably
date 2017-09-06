@@ -57,7 +57,7 @@ func NewVerbParser(db model.Database, threadCount,
 	// if you give it a name ;D
 	const queueSize = 5000
 
-	consumer := &VerbParser{
+	vparser := &VerbParser{
 		DB:            db,
 		PageLimit:     pageLimit,
 		PagesConsumed: 0,
@@ -66,28 +66,28 @@ func NewVerbParser(db model.Database, threadCount,
 	}
 
 	for i := 0; i < threadCount; i++ {
-		worker := NewWorker(consumer, consumer.WorkerPool)
-		consumer.Workers = append(consumer.Workers, &worker)
+		worker := NewWorker(vparser, vparser.WorkerPool)
+		vparser.Workers = append(vparser.Workers, &worker)
 		worker.Start()
 	}
-	go consumer.coordinateJobs()
+	go vparser.coordinateJobs()
 
-	return consumer, nil
+	return vparser, nil
 }
 
-func (consumer *VerbParser) coordinateJobs() {
-	for job := range consumer.JobQueue {
+func (vparser *VerbParser) coordinateJobs() {
+	for job := range vparser.JobQueue {
 		go func(job parser.Page) {
-			worker := <-consumer.WorkerPool
+			worker := <-vparser.WorkerPool
 			worker <- job
 		}(job)
 	}
 }
 
 // Wait requests that all workers finish processing page content.
-func (consumer *VerbParser) Wait() {
-	for i := range consumer.Workers {
-		consumer.Workers[i].Stop()
+func (vparser *VerbParser) Wait() {
+	for i := range vparser.Workers {
+		vparser.Workers[i].Stop()
 	}
 }
 
@@ -96,22 +96,22 @@ func (consumer *VerbParser) Wait() {
 // If any section of page contains a verb definition, that verb and its
 // metadata are inserted in the database defined by consumer.Key. Pages
 // that do not contain verb definitions are ignored.
-func (consumer *VerbParser) Parse(page parser.Page) (bool, error) {
-	if consumer.PagesConsumed >= consumer.PageLimit &&
-		consumer.PageLimit != -1 {
-		return false, errors.New("VerbConsumer is no longer accepting Pages.")
+func (vparser *VerbParser) Parse(page parser.Page) (bool, error) {
+	if vparser.PagesConsumed >= vparser.PageLimit &&
+		vparser.PageLimit != -1 {
+		return false, errors.New("VerbParser is no longer accepting Pages.")
 	}
-	if consumer.PageLimit != -1 {
-		consumer.PagesConsumed++
+	if vparser.PageLimit != -1 {
+		vparser.PagesConsumed++
 	}
 
-	// A worker will pick this job up and process page with *VerbConsumer.scrape
-	consumer.JobQueue <- page
+	// Let a Worker process this page in another thread.
+	vparser.JobQueue <- page
 
 	return true, nil
 }
 
-func (consumer *VerbParser) scrape(page parser.Page, languagePattern,
+func (vparser *VerbParser) scrape(page parser.Page, languagePattern,
 	templatePattern *rubex.Regexp) {
 	content := &page.Revision.Text
 
@@ -128,9 +128,9 @@ func (consumer *VerbParser) scrape(page parser.Page, languagePattern,
 	languageHeaders = append(languageHeaders, []int{len(*content), 0})
 
 	for i := 0; i < sectionCount-1; i++ {
-		consumer.CurrentSection = (*content)[languageHeaders[i][1]:languageHeaders[i+1][0]]
+		vparser.CurrentSection = (*content)[languageHeaders[i][1]:languageHeaders[i+1][0]]
 
-		if strings.Contains(consumer.CurrentSection, "===Verb===") {
+		if strings.Contains(vparser.CurrentSection, "===Verb===") {
 			verb := model.Verb{
 				Language: extractLanguage(content, languageHeaders[i]),
 				Text:     page.Title,
@@ -140,21 +140,21 @@ func (consumer *VerbParser) scrape(page parser.Page, languagePattern,
 			// The problem is that we know the description (i.e., the language
 			// var itself) but not the tag. Either (a) create some temporary
 			// value to store in the tag column or (b) retrieve tags from the web.
-			if !consumer.DB.LanguageExists(verb.Language) {
+			if !vparser.DB.LanguageExists(verb.Language) {
 				log.Println("Language", verb.Language, "is undefined")
 				continue
 			}
 
-			verbId, err := consumer.DB.InsertVerb(verb)
+			verbId, err := vparser.DB.InsertVerb(verb)
 			if err != nil {
 				log.Println(err.Error())
 				continue
 			}
 
-			verbTemplates := consumer.GetTemplates(templatePattern)
+			verbTemplates := vparser.GetTemplates(templatePattern)
 
 			for _, template := range verbTemplates {
-				err := consumer.DB.InsertTemplate(template, verbId)
+				err := vparser.DB.InsertTemplate(template, verbId)
 				if err != nil {
 					log.Println(err.Error())
 				}
@@ -165,8 +165,8 @@ func (consumer *VerbParser) scrape(page parser.Page, languagePattern,
 
 // GetTemplates creates a VerbTemplate for each unique verb template in the
 // current section.
-func (consumer *VerbParser) GetTemplates(p *rubex.Regexp) []model.VerbTemplate {
-	templates := p.FindAllString(consumer.CurrentSection, -1)
+func (vparser *VerbParser) GetTemplates(p *rubex.Regexp) []model.VerbTemplate {
+	templates := p.FindAllString(vparser.CurrentSection, -1)
 
 	var verbTemplates []model.VerbTemplate
 	haveSeen := make(map[string]bool)
