@@ -7,8 +7,8 @@ import (
 
 type Language string
 
-// ExistsIn checks db for the presence of the language.
-func (lang Language) ExistsIn(db *sql.DB) (exists bool) {
+// LanguageExists checks db for the existence of lang.
+func (db *PsqlDB) LanguageExists(lang Language) (exists bool) {
 	db.QueryRow(
 		`
 		SELECT EXISTS(
@@ -20,12 +20,14 @@ func (lang Language) ExistsIn(db *sql.DB) (exists bool) {
 
 type Verb struct {
 	Language Language
-	Text string
+	Text     string
 }
 
-// TryInsert adds verb to db if it is not already there.
-// The id of the new (or existing) row is returned.
-func (verb Verb) TryInsert(db *sql.DB) (int, error) {
+// InsertVerb adds verb to db if it was not already there.
+// The id of the new (or existing) verb is returned.
+// An error is returned if the verb wasn't present but could not be inserted;
+// otherwise, that value is nil.
+func (db *PsqlDB) InsertVerb(verb Verb) (int, error) {
 	verbId := -1
 
 	row := db.QueryRow(
@@ -49,8 +51,10 @@ func (verb Verb) TryInsert(db *sql.DB) (int, error) {
 
 type VerbTemplate string
 
-// AddTo adds the template of a verb to db.
-func (template VerbTemplate) AddTo(db *sql.DB, verbId int) error {
+// InsertTemplate adds template to db.
+// verbId should be the id of the verb that the template represents. If you
+// are unsure of how to get this value, see PsqlDB.InsertVerb.
+func (db *PsqlDB) InsertTemplate(template VerbTemplate, verbId int) error {
 	_, err := db.Exec(
 		`
 		INSERT INTO templates (verb_id, template)

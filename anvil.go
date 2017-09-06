@@ -4,7 +4,6 @@ import (
 	"anvil/model"
 	"anvil/parse"
 	"anvil/view"
-	"database/sql"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -96,7 +95,8 @@ func main() {
 	}
 }
 
-func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string, dbPort *uint) (*os.File, *sql.DB) {
+func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string,
+	dbPort *uint) (*os.File, *model.PsqlDB) {
 	if flag.NFlag() < 4 || *dbName == "" || *dbUser == "" || *dbPwd == "" ||
 		len(flag.Args()) == 0 {
 		fmt.Println("Usage: anvil -import -d [-h] [-port] -u -p pages-file")
@@ -109,14 +109,14 @@ func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string, dbPort *uint) (*os.
 	}
 
 	key := model.KeyRing{
-		Database: *dbName,
-		Host:     *dbHost,
-		Port:     *dbPort,
-		User:     *dbUser,
-		Password: *dbPwd,
+		DatabaseName: *dbName,
+		Host:         *dbHost,
+		Port:         *dbPort,
+		User:         *dbUser,
+		Password:     *dbPwd,
 	}
 
-	psqlDB, err := key.Validate()
+	psqlDB, err := model.NewPsqlDB(key)
 	if err != nil {
 		log.Fatal(err.Error())
 	}

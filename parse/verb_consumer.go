@@ -2,7 +2,6 @@ package parse
 
 import (
 	"anvil/model"
-	"database/sql"
 	"errors"
 	"github.com/moovweb/rubex"
 	"log"
@@ -13,7 +12,7 @@ import (
 // See *VerbConsumer.Consume and parse.ProcessPages for context.
 type VerbConsumer struct {
 	// Database connection
-	DB *sql.DB
+	DB model.Database
 
 	// Stop processing pages after Consume is called this many times
 	// A value of -1 indicates no limit on the amount of pages consumed.
@@ -44,7 +43,8 @@ type VerbConsumer struct {
 // Consume will always return a true value. When set to N, Consume will
 // begin returning false after it has been called N times.
 // Valid values are: {-1} U [1, INT_MAX]
-func NewVerbConsumer(db *sql.DB, threadCount, pageLimit int) (*VerbConsumer, error) {
+func NewVerbConsumer(db model.Database, threadCount,
+	pageLimit int) (*VerbConsumer, error) {
 	if threadCount < 1 {
 		return nil, errors.New("Thread count for VerbConsumer must be at least 1")
 	}
@@ -139,12 +139,12 @@ func (consumer *VerbConsumer) scrape(page Page, languagePattern,
 			// The problem is that we know the description (i.e., the language
 			// var itself) but not the tag. Either (a) create some temporary
 			// value to store in the tag column or (b) retrieve tags from the web.
-			if !verb.Language.ExistsIn(consumer.DB) {
+			if !consumer.DB.LanguageExists(verb.Language) {
 				log.Println("Language", verb.Language, "is undefined")
 				continue
 			}
 
-			verbId, err := verb.TryInsert(consumer.DB)
+			verbId, err := consumer.DB.InsertVerb(verb)
 			if err != nil {
 				log.Println(err.Error())
 				continue
@@ -153,7 +153,7 @@ func (consumer *VerbConsumer) scrape(page Page, languagePattern,
 			verbTemplates := consumer.GetTemplates(templatePattern)
 
 			for _, template := range verbTemplates {
-				err := template.AddTo(consumer.DB, verbId)
+				err := consumer.DB.InsertTemplate(template, verbId)
 				if err != nil {
 					log.Println(err.Error())
 				}
