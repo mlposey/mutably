@@ -7,7 +7,7 @@ type Database interface {
 	InsertTemplate(template VerbTemplate, verbId int) error
 }
 
-// A KeyRing contains credentials for connecting to a database.
+// KeyRing contains credentials for connecting to a database.
 type KeyRing struct {
 	DatabaseName string
 	Host         string
