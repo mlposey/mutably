@@ -13,7 +13,7 @@ type Parser interface {
 // ProcessPages sends each page of pagesFile to a parser.
 //
 // See the Page documentation for details on expected structure for pagesFile.
-func ProcessPages(pagesFile io.Reader, consumer Parser) error {
+func ProcessPages(pagesFile io.Reader, parser Parser) error {
 	decoder := xml.NewDecoder(pagesFile)
 	for t, e := decoder.Token(); t != nil; t, e = decoder.Token() {
 		if e != nil {
@@ -27,7 +27,7 @@ func ProcessPages(pagesFile io.Reader, consumer Parser) error {
 					var page Page
 					decoder.DecodeElement(&page, &elementType)
 
-					cont, err := consumer.Parse(page)
+					cont, err := parser.Parse(page)
 					if err != nil {
 						return err
 					}
