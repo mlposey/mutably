@@ -29,8 +29,9 @@ type VerbParser struct {
 	// This buffered channel is where the jobs will pile up.
 	JobQueue chan parser.Page
 
+	// TODO: This should be in Worker.
 	// The section of the current language being processed
-	// This will change throughout the lifetime of Consume because
+	// This will change throughout the lifetime of Parse because
 	// each page has many sections.
 	CurrentSection string
 }
