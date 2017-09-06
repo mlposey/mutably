@@ -1,7 +1,8 @@
-package parse
+package verb
 
 import (
 	"anvil/model"
+	"anvil/parse"
 	"errors"
 	"github.com/moovweb/rubex"
 	"log"
@@ -24,9 +25,9 @@ type VerbConsumer struct {
 	// Workers that process page content in goroutines
 	Workers []*Worker
 	// A pool of channels for workers that process Pages in separate threads
-	WorkerPool chan chan Page
+	WorkerPool chan chan parse.Page
 	// This buffered channel is where the jobs will pile up.
-	JobQueue chan Page
+	JobQueue chan parse.Page
 
 	// The section of the current language being processed
 	// This will change throughout the lifetime of Consume because
@@ -37,7 +38,7 @@ type VerbConsumer struct {
 // NewVerbConsumer creates a new *VerbConsumer that is connected to db and
 // uses threadCount threads.
 //
-// The connection to db must be valid and threadCount must be > 0.
+// threadCount must be > 0.
 //
 // pageLimit indicates how many pages should be consumed. If set to -1,
 // Consume will always return a true value. When set to N, Consume will
@@ -60,8 +61,8 @@ func NewVerbConsumer(db model.Database, threadCount,
 		DB:            db,
 		PageLimit:     pageLimit,
 		PagesConsumed: 0,
-		WorkerPool:    make(chan chan Page, threadCount),
-		JobQueue:      make(chan Page, queueSize),
+		WorkerPool:    make(chan chan parse.Page, threadCount),
+		JobQueue:      make(chan parse.Page, queueSize),
 	}
 
 	for i := 0; i < threadCount; i++ {
@@ -76,7 +77,7 @@ func NewVerbConsumer(db model.Database, threadCount,
 
 func (consumer *VerbConsumer) coordinateJobs() {
 	for job := range consumer.JobQueue {
-		go func(job Page) {
+		go func(job parse.Page) {
 			worker := <-consumer.WorkerPool
 			worker <- job
 		}(job)
@@ -95,7 +96,7 @@ func (consumer *VerbConsumer) Wait() {
 // If any section of page contains a verb definition, that verb and its
 // metadata are inserted in the database defined by consumer.Key. Pages
 // that do not contain verb definitions are ignored.
-func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
+func (consumer *VerbConsumer) Consume(page parse.Page) (bool, error) {
 	if consumer.PagesConsumed >= consumer.PageLimit &&
 		consumer.PageLimit != -1 {
 		return false, errors.New("VerbConsumer is no longer accepting Pages.")
@@ -110,7 +111,7 @@ func (consumer *VerbConsumer) Consume(page Page) (bool, error) {
 	return true, nil
 }
 
-func (consumer *VerbConsumer) scrape(page Page, languagePattern,
+func (consumer *VerbConsumer) scrape(page parse.Page, languagePattern,
 	templatePattern *rubex.Regexp) {
 	content := &page.Revision.Text
 
@@ -184,54 +185,4 @@ func (consumer *VerbConsumer) GetTemplates(p *rubex.Regexp) []model.VerbTemplate
 // Find the language header in str.
 func extractLanguage(str *string, indices []int) model.Language {
 	return model.Language(strings.ToLower((*str)[indices[0]+2 : indices[1]-3]))
-}
-
-// ---------------- Multithreading Logic ----------------
-
-// A Worker takes care of the verb consumption process for a page.
-type Worker struct {
-	Consumer *VerbConsumer
-
-	// Pattern for language headers
-	languagePattern *rubex.Regexp
-	// Pattern for verb templates
-	templatePattern *rubex.Regexp
-
-	JobPool chan chan Page
-	Job     chan Page
-	stop    chan bool
-}
-
-// NewWorker creates a worker ready to accept jobs from jobPool.
-func NewWorker(consumer *VerbConsumer, jobPool chan chan Page) Worker {
-	return Worker{
-		Consumer:        consumer,
-		languagePattern: rubex.MustCompile(`(?m)^==[^=]+==\n`),
-		templatePattern: rubex.MustCompile(`(?m)^{{2}[^{]+verb[^{]+}{2}$`),
-		JobPool:         jobPool,
-		Job:             make(chan Page),
-		stop:            make(chan bool),
-	}
-}
-
-func (worker Worker) Start() {
-	go func() {
-		for {
-			// Ask the main pool for work.
-			worker.JobPool <- worker.Job
-
-			select {
-			case page := <-worker.Job:
-				worker.Consumer.scrape(page, worker.languagePattern,
-					worker.templatePattern)
-
-			case <-worker.stop:
-				return
-			}
-		}
-	}()
-}
-
-func (worker Worker) Stop() {
-	worker.stop <- true
 }

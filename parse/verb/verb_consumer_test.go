@@ -1,9 +1,9 @@
-package parse_test
+package verb_test
 
 import (
-	"testing"
-	"anvil/parse"
+	"anvil/parse/verb"
 	"fmt"
+	"testing"
 )
 
 // *VerbConsumer.Consume should split a page into sections, where
@@ -66,8 +66,7 @@ func TestGetTemplates(t *testing.T) {
 		t.Error("Expected", len(templates), "templates, found", len(verbs))
 	}
 
-	if
-		verbs[0].Template == verbs[1].Template ||
+	if verbs[0].Template == verbs[1].Template ||
 		(verbs[0].Template != templates[0] && verbs[0].Template != templates[1]) ||
 		(verbs[1].Template != templates[0] && verbs[1].Template != templates[1]) {
 		t.Error("Failed to read templates")
@@ -80,12 +79,11 @@ var mockPage = struct {
 	Page          parse.Page
 }{
 	LanguageCount: 7,
-	VerbCount: 4,
+	VerbCount:     4,
 	Page: parse.Page{
 		Title: "lie",
 		Revision: parse.Revision{
-			Text:
-			`
+			Text: `
 		{{also|LIE|lié|líe|liè|liē|liě|li'e}}
 {{TOC limit|3}}
 ==English==

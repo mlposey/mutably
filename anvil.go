@@ -3,6 +3,7 @@ package main
 import (
 	"anvil/model"
 	"anvil/parse"
+	"anvil/parse/verb"
 	"anvil/view"
 	"flag"
 	"fmt"
@@ -77,7 +78,7 @@ func main() {
 		file, psqlDB := parseImportFlags(dbNameFlag, dbHostFlag,
 			dbUserFlag, dbPwdFlag, dbPortFlag)
 
-		consumer, err := parse.NewVerbConsumer(psqlDB, runtime.GOMAXPROCS(0),
+		consumer, err := verb.NewVerbConsumer(psqlDB, runtime.GOMAXPROCS(0),
 			*limitFlag)
 		if err != nil {
 			log.Fatal(err)
