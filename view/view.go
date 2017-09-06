@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-// A PageViewer reads Pages until one with a target title is found.
+// PageViewer reads Pages until one with a target title is found.
 type PageViewer struct {
 	TargetPageTitle string
 }
