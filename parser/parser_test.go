@@ -6,22 +6,47 @@ import (
 	"testing"
 )
 
-type testConsumer struct {
+type mockParser struct {
 	Pages []parser.Page
 }
 
-func (c *testConsumer) Consume(page parser.Page) (bool, error) {
-	c.Pages = append(c.Pages, page)
+func (mparser *mockParser) Parse(page parser.Page) (bool, error) {
+	mparser.Pages = append(mparser.Pages, page)
 	return true, nil
 }
 
-// TODO: Generate a variable amount of pages.
-// It would be nice if we could specify the page count and text content. Sha
-// hashes, timestamps, id's, etc. would be generated uniquely for each page.
+// ProcessPages should read valid page dumps into their corresponding structs.
+func TestProcessPages(t *testing.T) {
+	mparser := &mockParser{}
+	reader := strings.NewReader(mockDocument.Content)
 
-// Makes a sample page dump with 2 pages, returning the contents and page count.
-func makePageDump() (string, int) {
-	return `<mediawiki xmlns="http://www.mediawiki.org/xml/export-0.10/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mediawiki.org/xml/export-0.10/ http://www.mediawiki.org/xml/export-0.10.xsd" version="0.10" xml:lang="en">
+	if err := parser.ProcessPages(reader, mparser); err != nil {
+		t.Error(err.Error())
+	}
+
+	if len(mparser.Pages) != mockDocument.PageCount {
+		t.Error("Expected", mockDocument.PageCount, "pages. Found",
+			len(mparser.Pages))
+	}
+
+	const textContent = "Sample text"
+	trim := func(s string) string { return strings.Trim(s, "\n ") }
+
+	for _, page := range mparser.Pages {
+		if trim(page.Revision.Text) != trim(textContent) {
+			t.Error("Expected", textContent, ". Found",
+				page.Revision.Text)
+		}
+	}
+}
+
+// A structurally complete document containing two pages.
+var mockDocument = struct {
+	PageCount int
+	Content   string
+}{
+	PageCount: 2,
+	Content: `<mediawiki xmlns="http://www.mediawiki.org/xml/export-0.10/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mediawiki.org/xml/export-0.10/ http://www.mediawiki.org/xml/export-0.10.xsd" version="0.10" xml:lang="en">
   <siteinfo>
     <sitename>Wiktionary</sitename>
     <dbname>enwiktionary</dbname>
@@ -116,30 +141,5 @@ func makePageDump() (string, int) {
                 <sha1>phm76it2loo31avsd7b9wykwqbb23wu</sha1>
         </revision>
   </page>
-</mediawiki>`, 2
-}
-
-// ImportPages should read valid page dumps into their corresponding structs.
-func TestImportPages(t *testing.T) {
-	consumer := &testConsumer{}
-	dump, pageCount := makePageDump()
-	reader := strings.NewReader(dump)
-
-	if err := parser.ProcessPages(reader, consumer); err != nil {
-		t.Error(err.Error())
-	}
-
-	if len(consumer.Pages) != pageCount {
-		t.Error("Expected", pageCount, "pages. Found", len(consumer.Pages))
-	}
-
-	const textContent = "Sample text"
-	trim := func(s string) string { return strings.Trim(s, "\n ") }
-
-	for _, page := range consumer.Pages {
-		if trim(page.Revision.Text) != trim(textContent) {
-			t.Error("Expected", textContent, ". Found",
-				page.Revision.Text)
-		}
-	}
+</mediawiki>`,
 }
