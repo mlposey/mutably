@@ -8,14 +8,14 @@ import (
 	"os"
 )
 
-// A PageViewer consumes Pages until one with a target title is found.
+// A PageViewer reads Pages until one with a target title is found.
 type PageViewer struct {
 	TargetPageTitle string
 }
 
-// Consume checks page for a specific title. If the title is found, the
-// page contents are printed to stdout and Consume returns false.
-func (v *PageViewer) Consume(page parse.Page) (bool, error) {
+// Parse checks page for a specific title. If the title is found, the
+// page contents are printed to stdout and Parse returns false.
+func (v *PageViewer) Parse(page parse.Page) (bool, error) {
 	if page.Title == v.TargetPageTitle {
 		fmt.Println(page)
 		return false, nil

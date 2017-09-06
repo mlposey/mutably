@@ -1,9 +1,6 @@
 package parse
 
-import (
-	"encoding/xml"
-	"io"
-)
+import "encoding/xml"
 
 // Page defines the XML structure of a wiktionary 'pages' export.
 // Most pages contain information about a word for various languages. A few
@@ -30,43 +27,4 @@ type Revision struct {
 
 	// The contents of the revision (i.e., body of the webpage)
 	Text string `xml:"text"`
-}
-
-// A PageConsumer processes Page objects.
-type PageConsumer interface {
-	Consume(page Page) (bool, error)
-}
-
-// ProcessPages passes each page element of the pagesFile to consumer.
-//
-// consumer.Consume should return true to consume more pages or false
-// to stop.
-//
-// See the Page documentation for details on expected structure for pagesFile.
-func ProcessPages(pagesFile io.Reader, consumer PageConsumer) error {
-	decoder := xml.NewDecoder(pagesFile)
-	for t, e := decoder.Token(); t != nil; t, e = decoder.Token() {
-		if e != nil {
-			return e
-		}
-
-		switch elementType := t.(type) {
-		case xml.StartElement:
-			{
-				if elementType.Name.Local == "page" {
-					var page Page
-					decoder.DecodeElement(&page, &elementType)
-
-					cont, err := consumer.Consume(page)
-					if err != nil {
-						return err
-					}
-					if cont == false {
-						return nil
-					}
-				}
-			}
-		}
-	}
-	return nil
 }

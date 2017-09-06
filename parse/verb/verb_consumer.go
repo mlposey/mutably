@@ -91,12 +91,12 @@ func (consumer *VerbConsumer) Wait() {
 	}
 }
 
-// Consume conditionally adds the contents of page to a database.
+// Parse conditionally adds the contents of page to a database.
 //
 // If any section of page contains a verb definition, that verb and its
 // metadata are inserted in the database defined by consumer.Key. Pages
 // that do not contain verb definitions are ignored.
-func (consumer *VerbConsumer) Consume(page parse.Page) (bool, error) {
+func (consumer *VerbConsumer) Parse(page parse.Page) (bool, error) {
 	if consumer.PagesConsumed >= consumer.PageLimit &&
 		consumer.PageLimit != -1 {
 		return false, errors.New("VerbConsumer is no longer accepting Pages.")
