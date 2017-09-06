@@ -1,32 +1,32 @@
 package verb
 
 import (
-	"anvil/parse"
+	"anvil/parser"
 	"github.com/moovweb/rubex"
 )
 
-// A Worker takes care of the verb consumption process for a page.
+// Worker handles a unit of VerbParser's work in parallel.
 type Worker struct {
-	Consumer *VerbConsumer
+	Consumer *VerbParser
 
 	// Pattern for language headers
 	languagePattern *rubex.Regexp
 	// Pattern for verb templates
 	templatePattern *rubex.Regexp
 
-	JobPool chan chan parse.Page
-	Job     chan parse.Page
+	JobPool chan chan parser.Page
+	Job     chan parser.Page
 	stop    chan bool
 }
 
 // NewWorker creates a worker ready to accept jobs from jobPool.
-func NewWorker(consumer *VerbConsumer, jobPool chan chan parse.Page) Worker {
+func NewWorker(consumer *VerbParser, jobPool chan chan parser.Page) Worker {
 	return Worker{
 		Consumer:        consumer,
 		languagePattern: rubex.MustCompile(`(?m)^==[^=]+==\n`),
 		templatePattern: rubex.MustCompile(`(?m)^{{2}[^{]+verb[^{]+}{2}$`),
 		JobPool:         jobPool,
-		Job:             make(chan parse.Page),
+		Job:             make(chan parser.Page),
 		stop:            make(chan bool),
 	}
 }

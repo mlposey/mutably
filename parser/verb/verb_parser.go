@@ -2,20 +2,20 @@ package verb
 
 import (
 	"anvil/model"
-	"anvil/parse"
+	"anvil/parser"
 	"errors"
 	"github.com/moovweb/rubex"
 	"log"
 	"strings"
 )
 
-// VerbConsumer adds verbs to a database.
-// See *VerbConsumer.Consume and parse.ProcessPages for context.
-type VerbConsumer struct {
+// VerbParser adds verbs to a database.
+// See *VerbParser.Parse and parse.ProcessPages for context.
+type VerbParser struct {
 	// Database connection
 	DB model.Database
 
-	// Stop processing pages after Consume is called this many times
+	// Stop processing pages after Parse is called this many times
 	// A value of -1 indicates no limit on the amount of pages consumed.
 	PageLimit int
 	// The number of pages that have been sent to works. Some may
@@ -25,9 +25,9 @@ type VerbConsumer struct {
 	// Workers that process page content in goroutines
 	Workers []*Worker
 	// A pool of channels for workers that process Pages in separate threads
-	WorkerPool chan chan parse.Page
+	WorkerPool chan chan parser.Page
 	// This buffered channel is where the jobs will pile up.
-	JobQueue chan parse.Page
+	JobQueue chan parser.Page
 
 	// The section of the current language being processed
 	// This will change throughout the lifetime of Consume because
@@ -35,17 +35,17 @@ type VerbConsumer struct {
 	CurrentSection string
 }
 
-// NewVerbConsumer creates a new *VerbConsumer that is connected to db and
+// NewVerbParser creates a new *VerbParser that is connected to db and
 // uses threadCount threads.
 //
 // threadCount must be > 0.
 //
 // pageLimit indicates how many pages should be consumed. If set to -1,
-// Consume will always return a true value. When set to N, Consume will
+// Parse will always return a true value. When set to N, Consume will
 // begin returning false after it has been called N times.
 // Valid values are: {-1} U [1, INT_MAX]
-func NewVerbConsumer(db model.Database, threadCount,
-	pageLimit int) (*VerbConsumer, error) {
+func NewVerbParser(db model.Database, threadCount,
+	pageLimit int) (*VerbParser, error) {
 	if threadCount < 1 {
 		return nil, errors.New("Thread count for VerbConsumer must be at least 1")
 	}
@@ -57,12 +57,12 @@ func NewVerbConsumer(db model.Database, threadCount,
 	// if you give it a name ;D
 	const queueSize = 5000
 
-	consumer := &VerbConsumer{
+	consumer := &VerbParser{
 		DB:            db,
 		PageLimit:     pageLimit,
 		PagesConsumed: 0,
-		WorkerPool:    make(chan chan parse.Page, threadCount),
-		JobQueue:      make(chan parse.Page, queueSize),
+		WorkerPool:    make(chan chan parser.Page, threadCount),
+		JobQueue:      make(chan parser.Page, queueSize),
 	}
 
 	for i := 0; i < threadCount; i++ {
@@ -75,9 +75,9 @@ func NewVerbConsumer(db model.Database, threadCount,
 	return consumer, nil
 }
 
-func (consumer *VerbConsumer) coordinateJobs() {
+func (consumer *VerbParser) coordinateJobs() {
 	for job := range consumer.JobQueue {
-		go func(job parse.Page) {
+		go func(job parser.Page) {
 			worker := <-consumer.WorkerPool
 			worker <- job
 		}(job)
@@ -85,7 +85,7 @@ func (consumer *VerbConsumer) coordinateJobs() {
 }
 
 // Wait requests that all workers finish processing page content.
-func (consumer *VerbConsumer) Wait() {
+func (consumer *VerbParser) Wait() {
 	for i := range consumer.Workers {
 		consumer.Workers[i].Stop()
 	}
@@ -96,7 +96,7 @@ func (consumer *VerbConsumer) Wait() {
 // If any section of page contains a verb definition, that verb and its
 // metadata are inserted in the database defined by consumer.Key. Pages
 // that do not contain verb definitions are ignored.
-func (consumer *VerbConsumer) Parse(page parse.Page) (bool, error) {
+func (consumer *VerbParser) Parse(page parser.Page) (bool, error) {
 	if consumer.PagesConsumed >= consumer.PageLimit &&
 		consumer.PageLimit != -1 {
 		return false, errors.New("VerbConsumer is no longer accepting Pages.")
@@ -111,7 +111,7 @@ func (consumer *VerbConsumer) Parse(page parse.Page) (bool, error) {
 	return true, nil
 }
 
-func (consumer *VerbConsumer) scrape(page parse.Page, languagePattern,
+func (consumer *VerbParser) scrape(page parser.Page, languagePattern,
 	templatePattern *rubex.Regexp) {
 	content := &page.Revision.Text
 
@@ -165,7 +165,7 @@ func (consumer *VerbConsumer) scrape(page parse.Page, languagePattern,
 
 // GetTemplates creates a VerbTemplate for each unique verb template in the
 // current section.
-func (consumer *VerbConsumer) GetTemplates(p *rubex.Regexp) []model.VerbTemplate {
+func (consumer *VerbParser) GetTemplates(p *rubex.Regexp) []model.VerbTemplate {
 	templates := p.FindAllString(consumer.CurrentSection, -1)
 
 	var verbTemplates []model.VerbTemplate

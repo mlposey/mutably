@@ -1,7 +1,7 @@
 package verb_test
 
 import (
-	"anvil/parse/verb"
+	"anvil/parser/verb"
 	"fmt"
 	"testing"
 )

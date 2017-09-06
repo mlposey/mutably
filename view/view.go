@@ -1,7 +1,7 @@
 package view
 
 import (
-	"anvil/parse"
+	"anvil/parser"
 	"fmt"
 	"github.com/fatih/color"
 	"log"
@@ -15,7 +15,7 @@ type PageViewer struct {
 
 // Parse checks page for a specific title. If the title is found, the
 // page contents are printed to stdout and Parse returns false.
-func (v *PageViewer) Parse(page parse.Page) (bool, error) {
+func (v *PageViewer) Parse(page parser.Page) (bool, error) {
 	if page.Title == v.TargetPageTitle {
 		fmt.Println(page)
 		return false, nil
@@ -32,7 +32,7 @@ func Search(filePath, title string) {
 	}
 
 	color.Green("Starting search...")
-	err = parse.ProcessPages(file, &PageViewer{title})
+	err = parser.ProcessPages(file, &PageViewer{title})
 	if err != nil {
 		fmt.Println(err.Error())
 	}

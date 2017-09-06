@@ -1,16 +1,16 @@
-package parse_test
+package parser_test
 
 import (
-	"anvil/parse"
+	"anvil/parser"
 	"strings"
 	"testing"
 )
 
 type testConsumer struct {
-	Pages []parse.Page
+	Pages []parser.Page
 }
 
-func (c *testConsumer) Consume(page parse.Page) (bool, error) {
+func (c *testConsumer) Consume(page parser.Page) (bool, error) {
 	c.Pages = append(c.Pages, page)
 	return true, nil
 }
@@ -125,7 +125,7 @@ func TestImportPages(t *testing.T) {
 	dump, pageCount := makePageDump()
 	reader := strings.NewReader(dump)
 
-	if err := parse.ProcessPages(reader, consumer); err != nil {
+	if err := parser.ProcessPages(reader, consumer); err != nil {
 		t.Error(err.Error())
 	}
 

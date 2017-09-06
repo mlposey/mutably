@@ -2,8 +2,8 @@ package main
 
 import (
 	"anvil/model"
-	"anvil/parse"
-	"anvil/parse/verb"
+	"anvil/parser"
+	"anvil/parser/verb"
 	"anvil/view"
 	"flag"
 	"fmt"
@@ -78,13 +78,13 @@ func main() {
 		file, psqlDB := parseImportFlags(dbNameFlag, dbHostFlag,
 			dbUserFlag, dbPwdFlag, dbPortFlag)
 
-		consumer, err := verb.NewVerbConsumer(psqlDB, runtime.GOMAXPROCS(0),
+		consumer, err := verb.NewVerbParser(psqlDB, runtime.GOMAXPROCS(0),
 			*limitFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		parse.ProcessPages(file, consumer)
+		parser.ProcessPages(file, consumer)
 		consumer.Wait()
 
 	} else if *viewPageFlag {
