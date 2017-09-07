@@ -78,14 +78,14 @@ func main() {
 		file, psqlDB := parseImportFlags(dbNameFlag, dbHostFlag,
 			dbUserFlag, dbPwdFlag, dbPortFlag)
 
-		consumer, err := verb.NewVerbParser(psqlDB, runtime.GOMAXPROCS(0),
+		vparser, err := verb.NewVerbParser(psqlDB, runtime.GOMAXPROCS(0),
 			*limitFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		parser.ProcessPages(file, consumer)
-		consumer.Wait()
+		parser.ProcessPages(file, vparser)
+		vparser.Wait()
 
 	} else if *viewPageFlag {
 		if len(flag.Args()) != 2 {
