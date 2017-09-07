@@ -26,13 +26,13 @@ type worker struct {
 	verbPattern *rubex.Regexp
 	// Pattern for matching indicative verb templates
 	indicativePattern *rubex.Regexp
-	// Pattern for verb templates
+	// Pattern for matching any verb template
 	templatePattern *rubex.Regexp
 
 	jobQueue chan parser.Page
 }
 
-// NewWorker creates a worker ready to accept jobs from jobPool.
+// NewWorker creates a worker ready to accept jobs.
 func NewWorker(db model.Database, jobQueue chan parser.Page) worker {
 	return worker{
 		database:          db,
@@ -45,13 +45,15 @@ func NewWorker(db model.Database, jobQueue chan parser.Page) worker {
 	}
 }
 
-// Start makes worker begin waiting for jobs from the job pool.
+// Start makes worker begin waiting for jobs from the job queue.
 func (wkr worker) Start() {
 	for page := range wkr.jobQueue {
 		wkr.process(page)
 	}
 }
 
+// process extracts from page the language, word, and verb templates. The
+// word and templates are then inserted into wkr.database.
 func (wkr worker) process(page parser.Page) {
 	content := &page.Revision.Text
 
@@ -106,6 +108,14 @@ func (wkr worker) process(page parser.Page) {
 
 // getTemplates creates a VerbTemplate for each verb template
 // in languageSection.
+//
+// A template can state the form of a verb, offer guidelines on its
+// conjugation, or describe the context it is used in. Here are a few
+// examples:
+//
+// {{en-verb}}
+// {{en-verb|lies|lying|lied}}
+// {{inflection of|lier||3|s|pres|subj|lang=fr}}
 func (wkr worker) getTemplates() (templates []model.VerbTemplate) {
 	verbSections := wkr.getVerbSections()
 	if len(verbSections) == 0 {
@@ -141,6 +151,9 @@ func (wkr worker) getTemplates() (templates []model.VerbTemplate) {
 	return
 }
 
+// getVerbSections finds blocks of text within the languageSection that
+// detail a verb. These usually begin with a verb header and end at
+// either the end of the string or the beginning of a new header.
 func (wkr worker) getVerbSections() (sections []string) {
 	start, end := 0, 0
 	var tmp []int
