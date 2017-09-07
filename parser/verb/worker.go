@@ -23,44 +23,24 @@ type worker struct {
 	// Pattern for verb templates
 	templatePattern *rubex.Regexp
 
-	JobPool chan chan parser.Page
-	Job     chan parser.Page
-	stop    chan bool
+	JobQueue chan parser.Page
 }
 
 // NewWorker creates a worker ready to accept jobs from jobPool.
-func NewWorker(db model.Database, jobPool chan chan parser.Page) worker {
+func NewWorker(db model.Database, jobQueue chan parser.Page) worker {
 	return worker{
 		database:        db,
 		languagePattern: rubex.MustCompile(`(?m)^==[^=]+==\n`),
 		templatePattern: rubex.MustCompile(`(?m)^{{2}[^{]+verb[^{]+}{2}$`),
-		JobPool:         jobPool,
-		Job:             make(chan parser.Page),
-		stop:            make(chan bool),
+		JobQueue:        jobQueue,
 	}
 }
 
 // Start makes worker begin waiting for jobs from the job pool.
 func (wkr worker) Start() {
-	go func() {
-		for {
-			// Ask the main pool for work.
-			wkr.JobPool <- wkr.Job
-
-			select {
-			case page := <-wkr.Job:
-				wkr.process(page)
-
-			case <-wkr.stop:
-				return
-			}
-		}
-	}()
-}
-
-// Stop makes worker stop waiting for jobs from the job pool.
-func (wkr worker) Stop() {
-	wkr.stop <- true
+	for page := range wkr.JobQueue {
+		wkr.process(page)
+	}
 }
 
 func (wkr worker) process(page parser.Page) {

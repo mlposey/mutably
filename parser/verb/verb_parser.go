@@ -4,6 +4,7 @@ import (
 	"anvil/model"
 	"anvil/parser"
 	"errors"
+	"sync"
 )
 
 // VerbParser uses parallel workers to add verbs to a database.
@@ -15,12 +16,10 @@ type VerbParser struct {
 	// not be fully processed, even if the value has been accounted for.
 	PagesConsumed int
 
-	// workers that process page content in goroutines
-	Workers []*worker
-	// A pool of channels for workers that process Pages in separate threads
-	WorkerPool chan chan parser.Page
-	// This buffered channel is where the jobs will pile up.
+	// This buffered channel holds Page sent from parse.
 	JobQueue chan parser.Page
+	// A wait group for the workers.
+	waitGroup sync.WaitGroup
 }
 
 // NewVerbParser creates a new *VerbParser that is connected to db and
@@ -48,36 +47,24 @@ func NewVerbParser(db model.Database, threadCount,
 	vparser := &VerbParser{
 		PageLimit:     pageLimit,
 		PagesConsumed: 0,
-		WorkerPool:    make(chan chan parser.Page, threadCount),
 		JobQueue:      make(chan parser.Page, queueSize),
 	}
 
+	vparser.waitGroup.Add(threadCount)
+
 	for i := 0; i < threadCount; i++ {
-		worker := NewWorker(db, vparser.WorkerPool)
-		vparser.Workers = append(vparser.Workers, &worker)
-		worker.Start()
+		go func(wkr worker, wg *sync.WaitGroup) {
+			defer wg.Done()
+			wkr.Start()
+		}(NewWorker(db, vparser.JobQueue), &vparser.waitGroup)
 	}
-	go vparser.coordinateJobs()
-
 	return vparser, nil
-}
-
-func (vparser *VerbParser) coordinateJobs() {
-	for job := range vparser.JobQueue {
-		go func(job parser.Page) {
-			worker := <-vparser.WorkerPool
-			worker <- job
-		}(job)
-	}
 }
 
 // Wait requests that all workers finish processing page content.
 func (vparser *VerbParser) Wait() {
-	// TODO: Determine if workers are actually finishing the work.
-	// There may be jobs left in the pool. Figure it out, yo.
-	for i := range vparser.Workers {
-		vparser.Workers[i].Stop()
-	}
+	close(vparser.JobQueue)
+	vparser.waitGroup.Wait()
 }
 
 // Parse conditionally adds the contents of page to a database.
@@ -94,7 +81,7 @@ func (vparser *VerbParser) Parse(page parser.Page) (bool, error) {
 		vparser.PagesConsumed++
 	}
 
-	// Let a Worker process this page in another thread.
+	// Send the page to a worker that waits on the other end.
 	vparser.JobQueue <- page
 
 	return true, nil
