@@ -58,7 +58,7 @@ func (wkr worker) process(page parser.Page) {
 	// create a fake header at the end to grab the last section.
 	languageHeaders = append(languageHeaders, []int{len(*content), 0})
 
-	for i := 0; i < sectionCount-1; i++ {
+	for i := 0; i < sectionCount; i++ {
 		wkr.languageSection =
 			(*content)[languageHeaders[i][1]:languageHeaders[i+1][0]]
 
@@ -110,7 +110,6 @@ func (wkr worker) GetTemplates() []model.VerbTemplate {
 			haveSeen[template] = true
 		}
 	}
-
 	return verbTemplates
 }
 
