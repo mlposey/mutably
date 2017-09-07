@@ -28,22 +28,22 @@ func TestParse(t *testing.T) {
 		t.Error("Expected", mockPage.VerbCount, "verbs, found", len(mdb.verbs))
 	}
 
-	if len(mdb.templates) != mockPage.TemplateCount {
+	if mdb.TemplateCount() != mockPage.TemplateCount {
 		t.Error("Expected", mockPage.TemplateCount, "templates, found",
-			len(mdb.templates))
+			mdb.TemplateCount())
 	}
 }
 
 type mockDB struct {
 	languages []model.Language
 	verbs     []model.Verb
-	templates map[int]model.VerbTemplate
+	templates map[int][]model.VerbTemplate
 }
 
 func NewMockDB() *mockDB {
 	return &mockDB{
 		languages: []model.Language{"english", "spanish", "finnish", "french"},
-		templates: make(map[int]model.VerbTemplate),
+		templates: make(map[int][]model.VerbTemplate),
 	}
 }
 
@@ -62,8 +62,15 @@ func (mdb *mockDB) InsertVerb(verb model.Verb) (int, error) {
 }
 
 func (mdb *mockDB) InsertTemplate(template model.VerbTemplate, verbId int) error {
-	mdb.templates[verbId] = template
+	mdb.templates[verbId] = append(mdb.templates[verbId], template)
 	return nil
+}
+
+func (mdb *mockDB) TemplateCount() (count int) {
+	for _, v := range mdb.templates {
+		count += len(v)
+	}
+	return
 }
 
 var mockPage = struct {

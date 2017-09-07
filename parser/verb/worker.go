@@ -18,27 +18,36 @@ type worker struct {
 	// process. This is the one being worked on now.
 	languageSection string
 
+	// Pattern for matching any header
+	headerPattern *rubex.Regexp
 	// Pattern for language headers
 	languagePattern *rubex.Regexp
+	// Pattern for verb headers
+	verbPattern *rubex.Regexp
+	// Pattern for matching indicative verb templates
+	indicativePattern *rubex.Regexp
 	// Pattern for verb templates
 	templatePattern *rubex.Regexp
 
-	JobQueue chan parser.Page
+	jobQueue chan parser.Page
 }
 
 // NewWorker creates a worker ready to accept jobs from jobPool.
 func NewWorker(db model.Database, jobQueue chan parser.Page) worker {
 	return worker{
-		database:        db,
-		languagePattern: rubex.MustCompile(`(?m)^==[^=]+==\n`),
-		templatePattern: rubex.MustCompile(`(?m)^{{2}[^{]+verb[^{]+}{2}$`),
-		JobQueue:        jobQueue,
+		database:          db,
+		headerPattern:     rubex.MustCompile(`(?m)^={2,}.*={2,}$`),
+		languagePattern:   rubex.MustCompile(`(?m)^==[^=]+==\n`),
+		verbPattern:       rubex.MustCompile(`(?m)^={3,}Verb={3,}$`),
+		indicativePattern: rubex.MustCompile(`verb( |-)form`),
+		templatePattern:   rubex.MustCompile(`(?m)(# )?({{[^{]*}})`),
+		jobQueue:          jobQueue,
 	}
 }
 
 // Start makes worker begin waiting for jobs from the job pool.
 func (wkr worker) Start() {
-	for page := range wkr.JobQueue {
+	for page := range wkr.jobQueue {
 		wkr.process(page)
 	}
 }
@@ -83,7 +92,7 @@ func (wkr worker) process(page parser.Page) {
 				continue
 			}
 
-			verbTemplates := wkr.GetTemplates()
+			verbTemplates := wkr.getTemplates()
 
 			for _, template := range verbTemplates {
 				err := wkr.database.InsertTemplate(template, verbId)
@@ -95,22 +104,65 @@ func (wkr worker) process(page parser.Page) {
 	}
 }
 
-// GetTemplates creates a VerbTemplate for each unique verb template in the
-// current section.
-func (wkr worker) GetTemplates() []model.VerbTemplate {
-	templates := wkr.templatePattern.FindAllString(wkr.languageSection, -1)
+// getTemplates creates a VerbTemplate for each verb template
+// in languageSection.
+func (wkr worker) getTemplates() (templates []model.VerbTemplate) {
+	verbSections := wkr.getVerbSections()
+	if len(verbSections) == 0 {
+		return
+	}
 
-	var verbTemplates []model.VerbTemplate
-	haveSeen := make(map[string]bool)
+	for _, verbSection := range verbSections {
+		rawTemps := wkr.templatePattern.FindAllStringSubmatch(verbSection, -1)
+		if rawTemps == nil {
+			break
+		}
 
-	// Some sections have repeat template definitions; ignore duplicates.
-	for _, template := range templates {
-		if !haveSeen[template] {
-			verbTemplates = append(verbTemplates, model.VerbTemplate(template))
-			haveSeen[template] = true
+		base := rawTemps[0][0]
+		templates = append(templates, model.VerbTemplate(base))
+
+		if wkr.indicativePattern.MatchString(base) {
+			// This is an indicative verb. It can serve as the template
+			// for many tenses and contexts, so there may more template
+			// definitions than just the base.
+			for i := 1; i < len(rawTemps); i++ {
+				var template string
+				if len(rawTemps[i]) == 3 {
+					// ['# {{atemplate}}', '# ', '{{atemplate}}']
+					template = rawTemps[i][2]
+				} else {
+					// ['{{atemplate}}', '{{atemplate}}']
+					template = rawTemps[i][0]
+				}
+				templates = append(templates, model.VerbTemplate(template))
+			}
 		}
 	}
-	return verbTemplates
+	return
+}
+
+func (wkr worker) getVerbSections() (sections []string) {
+	start, end := 0, 0
+	var tmp []int
+	for {
+		// Find start of section.
+		tmp = wkr.verbPattern.FindStringIndex(wkr.languageSection[end:])
+		if tmp == nil {
+			break
+		} else {
+			start = end + tmp[1]
+		}
+		// Find end of section.
+		tmp = wkr.headerPattern.FindStringIndex(wkr.languageSection[start:])
+		if tmp == nil {
+			sections = append(sections, wkr.languageSection[start:])
+			break
+		} else {
+			end = start + tmp[0]
+			sections = append(sections, wkr.languageSection[start:end])
+		}
+	}
+	return
 }
 
 // Find the language header in str.
