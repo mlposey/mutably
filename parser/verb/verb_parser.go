@@ -17,7 +17,7 @@ type VerbParser struct {
 	PagesConsumed int
 
 	// This buffered channel holds Page sent from parse.
-	JobQueue chan parser.Page
+	jobQueue chan parser.Page
 	// A wait group for the workers.
 	waitGroup sync.WaitGroup
 }
@@ -47,7 +47,7 @@ func NewVerbParser(db model.Database, threadCount,
 	vparser := &VerbParser{
 		PageLimit:     pageLimit,
 		PagesConsumed: 0,
-		JobQueue:      make(chan parser.Page, queueSize),
+		jobQueue:      make(chan parser.Page, queueSize),
 	}
 
 	vparser.waitGroup.Add(threadCount)
@@ -56,14 +56,14 @@ func NewVerbParser(db model.Database, threadCount,
 		go func(wkr worker, wg *sync.WaitGroup) {
 			defer wg.Done()
 			wkr.Start()
-		}(NewWorker(db, vparser.JobQueue), &vparser.waitGroup)
+		}(NewWorker(db, vparser.jobQueue), &vparser.waitGroup)
 	}
 	return vparser, nil
 }
 
 // Wait requests that all workers finish processing page content.
 func (vparser *VerbParser) Wait() {
-	close(vparser.JobQueue)
+	close(vparser.jobQueue)
 	vparser.waitGroup.Wait()
 }
 
@@ -82,7 +82,7 @@ func (vparser *VerbParser) Parse(page parser.Page) (bool, error) {
 	}
 
 	// Send the page to a worker that waits on the other end.
-	vparser.JobQueue <- page
+	vparser.jobQueue <- page
 
 	return true, nil
 }
