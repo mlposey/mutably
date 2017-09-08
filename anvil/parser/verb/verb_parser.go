@@ -41,7 +41,7 @@ func NewVerbParser(db model.Database, threadCount,
 	}
 
 	// TODO: Find optimal job queue size.
-	const jobQueueSize = 5000
+	const jobQueueSize = 10000
 
 	vparser := &VerbParser{
 		PageLimit:     pageLimit,

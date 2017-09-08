@@ -69,6 +69,8 @@ func (wkr worker) process(page parser.Page) {
 	// create a fake header at the end to grab the last section.
 	languageHeaders = append(languageHeaders, []int{len(*content), 0})
 
+	wordId := wkr.database.InsertWord(page.Title)
+
 	for i := 0; i < sectionCount; i++ {
 		wkr.languageSection =
 			(*content)[languageHeaders[i][1]:languageHeaders[i+1][0]]
@@ -83,23 +85,25 @@ func (wkr worker) process(page parser.Page) {
 			// The problem is that we know the description (i.e., the language
 			// var itself) but not the tag. Either (a) create some temporary
 			// value to store in the tag column or (b) retrieve tags from the web.
-			if !wkr.database.LanguageExists(verb.Language) {
+			exists, langId := wkr.database.LanguageExists(verb.Language)
+			if !exists {
 				log.Println("Language", verb.Language, "is undefined")
 				continue
 			}
 
-			verbId, err := wkr.database.InsertVerb(verb)
-			if err != nil {
-				log.Println(err.Error())
-				continue
-			}
+			verbsTemplates := wkr.getTemplates()
 
-			verbTemplates := wkr.getTemplates()
-
-			for _, template := range verbTemplates {
-				err := wkr.database.InsertTemplate(template, verbId)
+			for i := range verbsTemplates {
+				verbId, err := wkr.database.InsertVerb(wordId, langId)
 				if err != nil {
 					log.Println(err.Error())
+					break
+				}
+				for _, template := range verbsTemplates[i] {
+					err := wkr.database.InsertTemplate(template, verbId)
+					if err != nil {
+						log.Println(err.Error())
+					}
 				}
 			}
 		}
@@ -116,20 +120,22 @@ func (wkr worker) process(page parser.Page) {
 // {{en-verb}}
 // {{en-verb|lies|lying|lied}}
 // {{inflection of|lier||3|s|pres|subj|lang=fr}}
-func (wkr worker) getTemplates() (templates []model.VerbTemplate) {
+func (wkr worker) getTemplates() (templates [][]model.VerbTemplate) {
 	verbSections := wkr.getVerbSections()
 	if len(verbSections) == 0 {
 		return
 	}
 
-	for _, verbSection := range verbSections {
+	templates = make([][]model.VerbTemplate, len(verbSections))
+
+	for vt, verbSection := range verbSections {
 		rawTemps := wkr.templatePattern.FindAllStringSubmatch(verbSection, -1)
 		if rawTemps == nil {
 			break
 		}
 
 		base := rawTemps[0][0]
-		templates = append(templates, model.VerbTemplate(base))
+		templates[vt] = append(templates[vt], model.VerbTemplate(base))
 
 		if wkr.indicativePattern.MatchString(base) {
 			// This is an indicative verb. It can serve as the template
@@ -144,7 +150,8 @@ func (wkr worker) getTemplates() (templates []model.VerbTemplate) {
 					// ['{{atemplate}}', '{{atemplate}}']
 					template = rawTemps[i][0]
 				}
-				templates = append(templates, model.VerbTemplate(template))
+				templates[vt] = append(templates[vt],
+					model.VerbTemplate(template))
 			}
 		}
 	}

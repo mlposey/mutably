@@ -1,3 +1,11 @@
-anvil
+# Main Project
+.idea/
 
-.idea
+# Database
+database/data/*.xml
+
+# anvil
+anvil/anvil
+anvil/*.iml
+anvil/.idea/
+anvil/benchmark-personal.sh

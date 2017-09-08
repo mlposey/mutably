@@ -1,10 +1,10 @@
-FROM golang:1.9
+FROM golang:1.8
 
 RUN apt-get update && apt-get install -y \
   git \
   bash \
   gcc \
-  libonig4 libonig-dev
+  libonig2 libonig-dev
 
 WORKDIR /page-archive
 VOLUME ["/page-archive"]

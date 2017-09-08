@@ -1,0 +1,24 @@
+version: '3'
+services:
+  database:
+    build: ./database
+    env_file:
+    - ./database/vars.env
+    volumes:
+    - psql:/var/lib/postgresql/data
+
+  anvil:
+    build: ./anvil
+    depends_on:
+    - database
+    env_file:
+    - ./database/vars.env
+    environment:
+    - DB_HOST=database
+    - DB_PORT=5432
+    volumes:
+    - ./database/data:/page-archive
+
+volumes:
+  psql:
+    driver: "local"

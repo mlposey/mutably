@@ -2,8 +2,9 @@ package model
 
 // A Database handles queries to a collection of application data.
 type Database interface {
-	LanguageExists(Language) bool
-	InsertVerb(Verb) (int, error)
+	LanguageExists(Language) (exists bool, languageId int)
+	InsertWord(string) (wordId int)
+	InsertVerb(wordId, languageId int) (verbId int, err error)
 	InsertTemplate(template VerbTemplate, verbId int) error
 }
 
