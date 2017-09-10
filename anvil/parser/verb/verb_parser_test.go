@@ -36,33 +36,43 @@ func TestParse(t *testing.T) {
 
 type mockDB struct {
 	languages []model.Language
-	verbs     []model.Verb
-	templates map[int][]model.VerbTemplate
+	words     []string
+	verbs     map[int][]int                // languageId -> {wordId...}
+	templates map[model.VerbTemplate][]int // template -> {verbId...}
 }
 
 func NewMockDB() *mockDB {
 	return &mockDB{
 		languages: []model.Language{"english", "spanish", "finnish", "french"},
-		templates: make(map[int][]model.VerbTemplate),
+		verbs:     make(map[int][]int),
+		templates: make(map[model.VerbTemplate][]int),
 	}
 }
 
-func (mdb *mockDB) LanguageExists(lang model.Language) bool {
-	for _, l := range mdb.languages {
-		if l == lang {
-			return true
+func (mdb *mockDB) LanguageExists(lang model.Language) (bool, int) {
+	for i, language := range mdb.languages {
+		if language == lang {
+			return true, i
 		}
 	}
-	return false
+	return false, -1
 }
 
-func (mdb *mockDB) InsertVerb(verb model.Verb) (int, error) {
-	mdb.verbs = append(mdb.verbs, verb)
-	return len(mdb.verbs) - 1, nil
+func (mdb *mockDB) InsertWord(word string) int {
+	mdb.words = append(mdb.words, word)
+	return len(mdb.words) - 1
+}
+
+func (mdb *mockDB) InsertVerb(wordId, languageId int) (int, error) {
+	mdb.verbs[languageId] = append(mdb.verbs[languageId], wordId)
+	return len(mdb.verbs[languageId]) - 1, nil
 }
 
 func (mdb *mockDB) InsertTemplate(template model.VerbTemplate, verbId int) error {
-	mdb.templates[verbId] = append(mdb.templates[verbId], template)
+	// This doesn't really make a whole ton of sense, but it doesn't need
+	// to for current testing. A more accurate representation of template
+	// storage may be needed if the complexity of VerbParser tests increases.
+	mdb.templates[template] = append(mdb.templates[template], verbId)
 	return nil
 }
 
