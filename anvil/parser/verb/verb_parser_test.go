@@ -1,9 +1,9 @@
 package verb_test
 
 import (
-	"anvil/model"
-	"anvil/parser"
-	"anvil/parser/verb"
+	"mutably/anvil/model"
+	"mutably/anvil/parser"
+	"mutably/anvil/parser/verb"
 	"testing"
 )
 

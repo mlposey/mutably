@@ -1,14 +1,14 @@
 package main
 
 import (
-	"anvil/model"
-	"anvil/parser"
-	"anvil/parser/verb"
-	"anvil/view"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"mutably/anvil/model"
+	"mutably/anvil/parser"
+	"mutably/anvil/parser/verb"
+	"mutably/anvil/view"
 	"os"
 	"runtime"
 	"runtime/pprof"

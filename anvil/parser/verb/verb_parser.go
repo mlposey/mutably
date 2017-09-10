@@ -1,9 +1,9 @@
 package verb
 
 import (
-	"anvil/model"
-	"anvil/parser"
 	"errors"
+	"mutably/anvil/model"
+	"mutably/anvil/parser"
 	"sync"
 )
 
