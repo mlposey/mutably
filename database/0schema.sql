@@ -27,6 +27,7 @@ CREATE TABLE verbs (
 -- Templates provide rules for how a verb is conjugated.
 CREATE TABLE templates (
   id serial NOT NULL PRIMARY KEY,
+  lang_id int NOT NULL REFERENCES languages(id) ON DELETE CASCADE,
   template text NOT NULL UNIQUE
 );
 

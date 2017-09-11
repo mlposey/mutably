@@ -96,10 +96,15 @@ func (db *PsqlDB) InsertTemplate(template VerbTemplate, verbId int) error {
 	if row.Scan(&templateId) == sql.ErrNoRows {
 		db.QueryRow(
 			`
-			INSERT INTO templates (template)
-			VALUES ($1)
+			INSERT INTO templates (lang_id, template)
+			VALUES ((
+				SELECT languages.id FROM languages
+				JOIN verbs ON verbs.lang_id = languages.id
+				WHERE verbs.id = $1
+				), $2
+			)
 			RETURNING id
-			`, template,
+			`, verbId, template,
 		).Scan(&templateId)
 	}
 
