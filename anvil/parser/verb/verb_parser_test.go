@@ -34,6 +34,54 @@ func TestParse(t *testing.T) {
 	}
 }
 
+// VerbParser should not process a section of a page if it is for a language
+// that is undefined.
+func TestVerbParser_NewLanguage(t *testing.T) {
+	mdb := NewMockDB()
+	mdb.languages = []model.Language{}
+
+	parser, e := verb.NewVerbParser(mdb, 2, -1)
+	if e != nil {
+		t.Error(e.Error())
+	}
+
+	parser.Parse(mockPage.Page)
+	parser.Wait()
+
+	if len(mdb.words) != 0 || len(mdb.verbs) != 0 || len(mdb.templates) != 0 {
+		t.Error("Unidentified languages should not be processed.")
+	}
+}
+
+// VerbParser should store both versions of a verb that has multiple meanings.
+// E.g., 'lie', which has two meanings in English, will have two verb
+// sections in the archive. These should produce two different verb entries
+// in the database.
+func TestVerbParser_MultipleMeanings(t *testing.T) {
+	mdb := NewMockDB()
+	parser, e := verb.NewVerbParser(mdb, 2, -1)
+	if e != nil {
+		t.Error(e.Error())
+	}
+	parser.Parse(mockPage.Page)
+	parser.Wait()
+
+	lieIndex := -1
+	for i := range mdb.words {
+		if mdb.words[i] == "lie" {
+			lieIndex = i
+			break
+		}
+	}
+	if lieIndex == -1 {
+		t.Error("VerbParser is not inserting words of known languages.")
+	}
+
+	if len(mdb.verbs[lieIndex]) != 2 {
+		t.Error("VerbParser is not adding duplicate verbs with different meanings.")
+	}
+}
+
 type mockDB struct {
 	languages []model.Language
 	words     []string
@@ -83,6 +131,9 @@ func (mdb *mockDB) TemplateCount() (count int) {
 	return
 }
 
+// A mock page setup. Do not change the contents of Page! Many tests in this
+// test package rely on it being the way it is. If you need a different
+// structure, make your own.
 var mockPage = struct {
 	LanguageCount int // The number of languages on the page
 	VerbCount     int // The number of languages where the word is a verb

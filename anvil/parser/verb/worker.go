@@ -69,7 +69,8 @@ func (wkr worker) process(page parser.Page) {
 	// create a fake header at the end to grab the last section.
 	languageHeaders = append(languageHeaders, []int{len(*content), 0})
 
-	wordId := wkr.database.InsertWord(page.Title)
+	// The id of the word; -1 means it hasn't been inserted into the database.
+	wordId := -1
 
 	for i := 0; i < sectionCount; i++ {
 		wkr.languageSection =
@@ -89,6 +90,9 @@ func (wkr worker) process(page parser.Page) {
 			if !exists {
 				log.Println("Language", verb.Language, "is undefined")
 				continue
+			}
+			if wordId == -1 {
+				wordId = wkr.database.InsertWord(page.Title)
 			}
 
 			verbsTemplates := wkr.getTemplates()
