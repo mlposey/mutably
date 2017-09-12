@@ -17,26 +17,27 @@ type Conjugator interface {
 	Conjugate(model.VerbTemplate) error
 }
 
-// Conjugators is a singleton that uses the description of a language
+// conjugators is a singleton that uses the description of a language
 // return its conjugator.
 // This object can be retrieved by calling GetConjugators().
-type Conjugators struct {
+type conjugators struct {
 	c map[string]Conjugator
 }
 
-func (conj *Conjugators) Get(language string) Conjugator {
+// Get retrieves a Conjugator with a matching language description.
+func (conj *conjugators) Get(language string) Conjugator {
 	return conj.c[language]
 }
 
 var (
 	once                sync.Once
-	conjugatorsInstance *Conjugators
+	conjugatorsInstance *conjugators
 )
 
 // GetConjugators returns the single instance of Conjugators.
-func GetConjugators() *Conjugators {
+func GetConjugators() *conjugators {
 	once.Do(func() {
-		conjugatorsInstance = &Conjugators{make(map[string]Conjugator)}
+		conjugatorsInstance = &conjugators{make(map[string]Conjugator)}
 
 		items := []Conjugator{
 			// Put new Conjugator implementations here.
