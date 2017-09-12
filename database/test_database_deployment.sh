@@ -11,5 +11,7 @@ TIMEOUT=10
 
 docker-compose up --build -d database
 sleep $TIMEOUT
-docker-compose ps | grep 'mutably_database.* Up'
+# TeamCity wont use the standard mutably_database naming scheme. mutably
+# will be some uuid.
+docker-compose ps | grep '_database.* Up'
 docker-compose down -v
