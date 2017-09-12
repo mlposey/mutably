@@ -18,7 +18,7 @@ type Conjugator interface {
 }
 
 // conjugators is a singleton that uses the description of a language
-// return its conjugator.
+// to return its conjugator.
 // This object can be retrieved by calling GetConjugators().
 type conjugators struct {
 	c map[string]Conjugator
@@ -34,7 +34,7 @@ var (
 	conjugatorsInstance *conjugators
 )
 
-// GetConjugators returns the single instance of Conjugators.
+// GetConjugators returns the single instance of conjugators.
 func GetConjugators() *conjugators {
 	once.Do(func() {
 		conjugatorsInstance = &conjugators{make(map[string]Conjugator)}
