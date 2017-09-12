@@ -73,7 +73,7 @@ func TestVerbParser_MultipleMeanings(t *testing.T) {
 			break
 		}
 	}
-	if lieIndex != -1 {
+	if lieIndex == -1 {
 		t.Error("VerbParser is not inserting words of known languages.")
 	}
 
