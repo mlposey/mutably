@@ -1,6 +1,8 @@
 /* Application database schema
- *
  * RDBMS: PostgreSQL 9.5
+ *
+ * This should be the first file that the postgres container runs. If adding
+ * other files, you may need to prefix the name of this one with '0'.
  */
 
 CREATE TABLE languages (
