@@ -28,7 +28,7 @@ func NewConjugators() *Conjugators {
 	return &Conjugators{make(map[string]Conjugator)}
 }
 
-// Add defines conjugator under each of its language descriptions.
+// Add defines a Conjugator under each of its language descriptions.
 func (conj *Conjugators) Add(conjugator Conjugator) {
 	for _, language := range conjugator.GetLanguages() {
 		conj.c[string(language)] = conjugator
