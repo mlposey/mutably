@@ -39,15 +39,22 @@ func NewPsqlDB(key KeyRing) (*PsqlDB, error) {
 	return &PsqlDB{psqlDB}, nil
 }
 
-// LanguageExists checks db for the existence of lang.
-// If it exists, the id is returned as an integer type.
-func (db *PsqlDB) LanguageExists(lang Language) (bool, int) {
+// InsertLanguage adds language to the database and returns its id.
+// If language already exists, the insertion is skipped and the id is returned.
+func (db *PsqlDB) InsertLanguage(language Language) int {
 	var id int
-	row := db.QueryRow(`SELECT id FROM languages WHERE description = $1`, lang)
+	row := db.QueryRow(`SELECT id FROM languages WHERE language = $1`, language)
+
 	if row.Scan(&id) == sql.ErrNoRows {
-		return false, -1
+		db.QueryRow(
+			`
+			INSERT INTO languages (language)
+			VALUES ($1)
+			RETURNING id
+			`, language,
+		).Scan(&id)
 	}
-	return true, id
+	return id
 }
 
 // InsertWord adds word to db if it was not already there.

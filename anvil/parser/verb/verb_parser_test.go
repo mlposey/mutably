@@ -2,17 +2,14 @@ package verb_test
 
 import (
 	"mutably/anvil/model"
+	"mutably/anvil/model/inflection"
 	"mutably/anvil/parser"
 	"mutably/anvil/parser/verb"
 	"testing"
 )
 
 func TestParse(t *testing.T) {
-	mdb := NewMockDB()
-	vparser, e := verb.NewVerbParser(mdb, 2, -1)
-	if e != nil {
-		t.Error(e.Error())
-	}
+	vparser, mdb := makeMockParser(t)
 
 	cont, err := vparser.Parse(mockPage.Page)
 	vparser.Wait()
@@ -37,10 +34,9 @@ func TestParse(t *testing.T) {
 // VerbParser should not process a section of a page if it is for a language
 // that is undefined.
 func TestVerbParser_NewLanguage(t *testing.T) {
+	emptyConjugators := inflection.NewConjugators()
 	mdb := NewMockDB()
-	mdb.languages = []model.Language{}
-
-	parser, e := verb.NewVerbParser(mdb, 2, -1)
+	parser, e := verb.NewVerbParser(mdb, 2, -1, emptyConjugators)
 	if e != nil {
 		t.Error(e.Error())
 	}
@@ -58,11 +54,7 @@ func TestVerbParser_NewLanguage(t *testing.T) {
 // sections in the archive. These should produce two different verb entries
 // in the database.
 func TestVerbParser_MultipleMeanings(t *testing.T) {
-	mdb := NewMockDB()
-	parser, e := verb.NewVerbParser(mdb, 2, -1)
-	if e != nil {
-		t.Error(e.Error())
-	}
+	parser, mdb := makeMockParser(t)
 	parser.Parse(mockPage.Page)
 	parser.Wait()
 
@@ -82,6 +74,31 @@ func TestVerbParser_MultipleMeanings(t *testing.T) {
 	}
 }
 
+func makeMockParser(t *testing.T) (*verb.VerbParser, *mockDB) {
+	t.Helper()
+	mockConjugators := inflection.NewConjugators()
+	mockConjugators.Add(&mockConjugator{
+		languages: []model.Language{"english", "spanish", "french", "finnish"},
+	})
+	db := NewMockDB()
+
+	vp, e := verb.NewVerbParser(db, 2, -1, mockConjugators)
+	if e != nil {
+		t.Error(e.Error())
+	}
+	return vp, db
+}
+
+type mockConjugator struct {
+	languages []model.Language
+}
+
+func (m *mockConjugator) GetLanguages() []model.Language {
+	return m.languages
+}
+func (m *mockConjugator) SetDatabase(db model.Database) error  { return nil }
+func (m *mockConjugator) Conjugate(t model.VerbTemplate) error { return nil }
+
 type mockDB struct {
 	languages []model.Language
 	words     []string
@@ -97,13 +114,14 @@ func NewMockDB() *mockDB {
 	}
 }
 
-func (mdb *mockDB) LanguageExists(lang model.Language) (bool, int) {
-	for i, language := range mdb.languages {
-		if language == lang {
-			return true, i
+func (mdb *mockDB) InsertLanguage(language model.Language) int {
+	for i, l := range mdb.languages {
+		if l == language {
+			return i
 		}
 	}
-	return false, -1
+	mdb.languages = append(mdb.languages, language)
+	return len(mdb.languages) - 1
 }
 
 func (mdb *mockDB) InsertWord(word string) int {

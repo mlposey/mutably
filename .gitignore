@@ -1,6 +1,9 @@
 # Main Project
 .idea/
 
+# All Subprojects
+**/cp.out
+
 # Database
 database/data/*.xml
 

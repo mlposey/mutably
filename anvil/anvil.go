@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"mutably/anvil/model"
+	"mutably/anvil/model/inflection"
 	"mutably/anvil/parser"
 	"mutably/anvil/parser/verb"
 	"mutably/anvil/view"
@@ -78,8 +79,11 @@ func main() {
 		file, psqlDB := parseImportFlags(dbNameFlag, dbHostFlag,
 			dbUserFlag, dbPwdFlag, dbPortFlag)
 
+		conjugators := inflection.NewConjugators()
+		conjugators.Add(&inflection.Dutch{})
+
 		vparser, err := verb.NewVerbParser(psqlDB, runtime.GOMAXPROCS(0),
-			*limitFlag)
+			*limitFlag, conjugators)
 		if err != nil {
 			log.Fatal(err)
 		}

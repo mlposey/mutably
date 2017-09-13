@@ -11,7 +11,7 @@ type Dutch struct {
 // GetLanguage provides various descriptions of the dutch language.
 // For example, "Dutch" is one form. "Nederlands" may be another.
 func (dutch *Dutch) GetLanguages() []model.Language {
-	return []model.Language{"Dutch", "Nederlands"}
+	return []model.Language{"Dutch"}
 }
 
 // SetDatabase assigns to dutch a database where it stores results.

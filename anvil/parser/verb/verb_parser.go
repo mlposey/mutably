@@ -3,6 +3,7 @@ package verb
 import (
 	"errors"
 	"mutably/anvil/model"
+	"mutably/anvil/model/inflection"
 	"mutably/anvil/parser"
 	"sync"
 )
@@ -31,8 +32,8 @@ type VerbParser struct {
 // Parse will always return a true value. When set to N, Parse will
 // begin returning false after it has been called N times.
 // Valid values are: {-1} U [1, INT_MAX]
-func NewVerbParser(db model.Database, threadCount,
-	pageLimit int) (*VerbParser, error) {
+func NewVerbParser(db model.Database, threadCount, pageLimit int,
+	conjugators *inflection.Conjugators) (*VerbParser, error) {
 	if threadCount < 1 {
 		return nil, errors.New("Thread count for VerbConsumer must be at least 1")
 	}
@@ -48,21 +49,22 @@ func NewVerbParser(db model.Database, threadCount,
 		PagesConsumed: 0,
 		jobQueue:      make(chan parser.Page, jobQueueSize),
 	}
-	vparser.spawnWorkers(threadCount, db)
+	vparser.spawnWorkers(threadCount, db, conjugators)
 
 	return vparser, nil
 }
 
 // spawnWorkers creates workerCount parallel workers that take jobs from the
 // job queue and store results in db.
-func (vparser *VerbParser) spawnWorkers(workerCount int, db model.Database) {
+func (vparser *VerbParser) spawnWorkers(workerCount int, db model.Database,
+	conjugators *inflection.Conjugators) {
 	vparser.waitGroup.Add(workerCount)
 
 	for i := 0; i < workerCount; i++ {
 		go func(wkr worker, wg *sync.WaitGroup) {
 			defer wg.Done()
 			wkr.Start()
-		}(NewWorker(db, vparser.jobQueue), &vparser.waitGroup)
+		}(NewWorker(db, vparser.jobQueue, conjugators), &vparser.waitGroup)
 	}
 }
 

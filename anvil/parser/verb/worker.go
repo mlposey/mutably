@@ -4,6 +4,7 @@ import (
 	"github.com/moovweb/rubex"
 	"log"
 	"mutably/anvil/model"
+	"mutably/anvil/model/inflection"
 	"mutably/anvil/parser"
 	"strings"
 )
@@ -12,6 +13,9 @@ import (
 type worker struct {
 	// The application database
 	database model.Database
+
+	// The conjugators that will transform verb templates
+	conjugators *inflection.Conjugators
 
 	// The current language section in the Page.
 	// Pages can have multiple sections that the Worker will need to
@@ -33,9 +37,11 @@ type worker struct {
 }
 
 // NewWorker creates a worker ready to accept jobs.
-func NewWorker(db model.Database, jobQueue chan parser.Page) worker {
+func NewWorker(db model.Database, jobQueue chan parser.Page,
+	conjugators *inflection.Conjugators) worker {
 	return worker{
 		database:          db,
+		conjugators:       conjugators,
 		headerPattern:     rubex.MustCompile(`(?m)^={2,}.*={2,}$`),
 		languagePattern:   rubex.MustCompile(`(?m)^==[^=]+==\n`),
 		verbPattern:       rubex.MustCompile(`(?m)^={3,}Verb={3,}$`),
@@ -82,15 +88,14 @@ func (wkr worker) process(page parser.Page) {
 				Text:     page.Title,
 			}
 
-			// TODO: Insert new languages into DB.
-			// The problem is that we know the description (i.e., the language
-			// var itself) but not the tag. Either (a) create some temporary
-			// value to store in the tag column or (b) retrieve tags from the web.
-			exists, langId := wkr.database.LanguageExists(verb.Language)
-			if !exists {
-				log.Println("Language", verb.Language, "is undefined")
+			conjugator, err := wkr.conjugators.Get(string(verb.Language))
+			if err != nil {
+				log.Println(err.Error())
 				continue
 			}
+			// TODO: Find a more efficient place to call this function.
+			languageId := wkr.database.InsertLanguage(verb.Language)
+
 			if wordId == -1 {
 				wordId = wkr.database.InsertWord(page.Title)
 			}
@@ -98,7 +103,7 @@ func (wkr worker) process(page parser.Page) {
 			verbsTemplates := wkr.getTemplates()
 
 			for i := range verbsTemplates {
-				verbId, err := wkr.database.InsertVerb(wordId, langId)
+				verbId, err := wkr.database.InsertVerb(wordId, languageId)
 				if err != nil {
 					log.Println(err.Error())
 					break
@@ -107,6 +112,8 @@ func (wkr worker) process(page parser.Page) {
 					err := wkr.database.InsertTemplate(template, verbId)
 					if err != nil {
 						log.Println(err.Error())
+					} else {
+						conjugator.Conjugate(template)
 					}
 				}
 			}
