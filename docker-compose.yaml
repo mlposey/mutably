@@ -17,7 +17,7 @@ services:
     - DB_HOST=database
     - DB_PORT=5432
     volumes:
-    - ./database/data:/page-archive
+    - ./database/data:/archive
 
 volumes:
   psql:
