@@ -1,11 +1,11 @@
 package verb
 
 import (
-	"github.com/moovweb/rubex"
 	"log"
 	"mutably/anvil/model"
 	"mutably/anvil/model/inflection"
 	"mutably/anvil/parser"
+	"regexp"
 	"strings"
 )
 
@@ -23,15 +23,15 @@ type worker struct {
 	languageSection string
 
 	// Pattern for matching any header
-	headerPattern *rubex.Regexp
+	headerPattern *regexp.Regexp
 	// Pattern for language headers
-	languagePattern *rubex.Regexp
+	languagePattern *regexp.Regexp
 	// Pattern for verb headers
-	verbPattern *rubex.Regexp
+	verbPattern *regexp.Regexp
 	// Pattern for matching indicative verb templates
-	indicativePattern *rubex.Regexp
+	indicativePattern *regexp.Regexp
 	// Pattern for matching any verb template
-	templatePattern *rubex.Regexp
+	templatePattern *regexp.Regexp
 
 	jobQueue chan parser.Page
 }
@@ -42,11 +42,11 @@ func NewWorker(db model.Database, jobQueue chan parser.Page,
 	return worker{
 		database:          db,
 		conjugators:       conjugators,
-		headerPattern:     rubex.MustCompile(`(?m)^={2,}.*={2,}$`),
-		languagePattern:   rubex.MustCompile(`(?m)^==[^=]+==\n`),
-		verbPattern:       rubex.MustCompile(`(?m)^={3,}Verb={3,}$`),
-		indicativePattern: rubex.MustCompile(`verb( |-)form`),
-		templatePattern:   rubex.MustCompile(`(?m)(# )?({{[^{]*}})`),
+		headerPattern:     regexp.MustCompile(`(?m)^={2,}.*={2,}$`),
+		languagePattern:   regexp.MustCompile(`(?m)^==[^=]+==\n`),
+		verbPattern:       regexp.MustCompile(`(?m)^={3,}Verb={3,}$`),
+		indicativePattern: regexp.MustCompile(`verb( |-)form`),
+		templatePattern:   regexp.MustCompile(`(?m)(# )?({{[^{]*}})`),
 		jobQueue:          jobQueue,
 	}
 }
