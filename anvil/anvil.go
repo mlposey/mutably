@@ -41,7 +41,7 @@ func init() {
 	flag.Parse()
 
 	if len(flag.Args()) == 0 {
-		Run = SuggestHelp
+		Run = ShowHelp
 	} else {
 		if !flags.BeVerbose {
 			log.SetOutput(ioutil.Discard)
@@ -61,7 +61,7 @@ func init() {
 		default:
 			Run = func() {
 				fmt.Println("Unknown command:", flag.Args()[0])
-				SuggestHelp()
+				ShowHelp()
 			}
 
 		}
@@ -72,8 +72,8 @@ func main() {
 	Run()
 }
 
-// SuggestHelp guides the user to the help panel.
-func SuggestHelp() {
+// ShowHelp displays possible commands.
+func ShowHelp() {
 	fmt.Println(
 		`anvil accepts the commands:
 * import
