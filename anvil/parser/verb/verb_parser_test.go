@@ -75,7 +75,7 @@ func TestVerbParser_MultipleMeanings(t *testing.T) {
 }
 
 func makeMockParser(t *testing.T) (*verb.VerbParser, *mockDB) {
-	// t.Helper() -- Needs Go 1.9 support
+	t.Helper()
 	mockConjugators := inflection.NewConjugators()
 	mockConjugators.Add(&mockConjugator{
 		languages: []model.Language{"english", "Spanish", "french", "Finnish"},
