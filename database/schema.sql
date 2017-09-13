@@ -7,8 +7,8 @@
 
 CREATE TABLE languages (
   id serial NOT NULL PRIMARY KEY,
-  description text NOT NULL UNIQUE,  -- Language name (e.g., English, Dutch)
-  tag text NOT NULL UNIQUE           -- Short code (e.g., en, es, nl)
+  language text NOT NULL UNIQUE,     -- Language name (e.g., English, Dutch)
+  tag text UNIQUE                    -- Short code (e.g., en, es, nl)
 );
 
 CREATE TABLE words (

@@ -78,7 +78,7 @@ func makeMockParser(t *testing.T) (*verb.VerbParser, *mockDB) {
 	t.Helper()
 	mockConjugators := inflection.NewConjugators()
 	mockConjugators.Add(&mockConjugator{
-		languages: []model.Language{"english", "spanish", "french", "finnish"},
+		languages: []model.Language{"english", "Spanish", "french", "Finnish"},
 	})
 	db := NewMockDB()
 

@@ -31,7 +31,7 @@ func NewConjugators() *Conjugators {
 // Add defines a Conjugator under each of its language descriptions.
 func (conj *Conjugators) Add(conjugator Conjugator) {
 	for _, language := range conjugator.GetLanguages() {
-		conj.c[string(language)] = conjugator
+		conj.c[string(language.Standardize())] = conjugator
 	}
 }
 

@@ -1,8 +1,15 @@
 package model
 
+import "strings"
+
 // Language is the description of a natural language.
 // This includes things like English, Dutch, and German.
 type Language string
+
+// Standardize converts language to a canonical form.
+func (language Language) Standardize() Language {
+	return Language(strings.ToLower(string(language)))
+}
 
 // Verb defines a word that is a verb in a specific language.
 type Verb struct {

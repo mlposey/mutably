@@ -198,5 +198,5 @@ func (wkr worker) getVerbSections() (sections []string) {
 
 // Find the language header in str.
 func extractLanguage(str *string, indices []int) model.Language {
-	return model.Language(strings.ToLower((*str)[indices[0]+2 : indices[1]-3]))
+	return model.Language((*str)[indices[0]+2 : indices[1]-3]).Standardize()
 }
