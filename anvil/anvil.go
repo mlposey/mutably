@@ -55,7 +55,7 @@ func init() {
 			Run = func() { Import(flags) }
 
 		case "view":
-			Run = func() { View(flags) }
+			Run = View
 		}
 	}
 }
@@ -89,7 +89,7 @@ func Import(args *AppFlags) {
 }
 
 // View displays content from the archive.
-func View(args *AppFlags) {
+func View() {
 	if len(flag.Args()) != 2 {
 		fmt.Println("Usage: anvil view [file] [page-title]")
 	} else {
