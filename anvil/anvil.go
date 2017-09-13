@@ -41,9 +41,7 @@ func init() {
 	flag.Parse()
 
 	if len(flag.Args()) == 0 {
-		Run = func() {
-			fmt.Println("Run anvil -h for usage details")
-		}
+		Run = SuggestHelp
 	} else {
 		if !flags.BeVerbose {
 			log.SetOutput(ioutil.Discard)
@@ -56,12 +54,24 @@ func init() {
 
 		case "view":
 			Run = View
+
+		default:
+			Run = func() {
+				fmt.Println("Unknown command:", flag.Args()[0])
+				SuggestHelp()
+			}
+
 		}
 	}
 }
 
 func main() {
 	Run()
+}
+
+// SuggestHelp guides the user to the help panel.
+func SuggestHelp() {
+	fmt.Println("Run anvil -h for usage details")
 }
 
 // Import processes the contents of an archive.
