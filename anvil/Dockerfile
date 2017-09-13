@@ -26,6 +26,6 @@ COPY --from=builder /go/src/mutably/anvil/anvil .
 COPY --from=builder /external/wait-for-it/wait-for-it.sh .
 
 ENTRYPOINT /bin/bash wait-for-it.sh $DB_HOST:$DB_PORT -t 0 -- \
-  ./anvil -import -host=$DB_HOST -port=$DB_PORT -d=$POSTGRES_DB \
+  ./anvil import -host=$DB_HOST -port=$DB_PORT -d=$POSTGRES_DB \
   -u=$POSTGRES_USER -p=$POSTGRES_PASSWORD /archive/*.xml
 
