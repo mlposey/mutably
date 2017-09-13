@@ -55,6 +55,9 @@ func init() {
 		case "view":
 			Run = View
 
+		case "help":
+			Run = flag.PrintDefaults
+
 		default:
 			Run = func() {
 				fmt.Println("Unknown command:", flag.Args()[0])
@@ -71,7 +74,17 @@ func main() {
 
 // SuggestHelp guides the user to the help panel.
 func SuggestHelp() {
-	fmt.Println("Run anvil -h for usage details")
+	fmt.Println(
+		`anvil accepts the commands:
+* import
+    - Imports an XML archive
+* view
+    - Views a specific page of an XML archive
+* help
+    - Displays information about command flags
+
+Run anvil [command] for specifics.
+	`)
 }
 
 // Import processes the contents of an archive.
