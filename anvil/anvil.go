@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"mutably/anvil/model"
 	"mutably/anvil/model/inflection"
@@ -15,11 +14,10 @@ import (
 )
 
 // Run makes the application perform the requested operation.
-// init() will assign a value to this var. That value depends
-// on the first program argument.
+// This value depends on the first argument passed to the program.
 var Run func()
 
-// Parse CLI flags to determine what Run() should do.
+// init uses command-line flags to determine the value of Run().
 func init() {
 	flags := &AppFlags{}
 
@@ -38,33 +36,10 @@ func init() {
 	flag.UintVar(&flags.DBPort, "port", 5432,
 		"The database port")
 
-	flag.Parse()
-
-	if len(flag.Args()) == 0 {
+	if len(os.Args) == 1 {
 		Run = ShowHelp
 	} else {
-		if !flags.BeVerbose {
-			log.SetOutput(ioutil.Discard)
-		}
-
-		// Determine the main purpose.
-		switch flag.Args()[0] {
-		case "import":
-			Run = func() { Import(flags) }
-
-		case "view":
-			Run = View
-
-		case "help":
-			Run = flag.PrintDefaults
-
-		default:
-			Run = func() {
-				fmt.Println("Unknown command:", flag.Args()[0])
-				ShowHelp()
-			}
-
-		}
+		Run = flags.GetIntent()
 	}
 }
 
@@ -75,15 +50,15 @@ func main() {
 // ShowHelp displays possible commands.
 func ShowHelp() {
 	fmt.Println(
-		`anvil accepts the commands:
+		`Usage: anvil <command>
+
+Commands:
 * import
     - Imports an XML archive
 * view
     - Views a specific page of an XML archive
 * help
     - Displays information about command flags
-
-Run anvil [command] for specifics.
 	`)
 }
 
@@ -113,8 +88,8 @@ func Import(args *AppFlags) {
 
 // View displays content from the archive.
 func View() {
-	if len(flag.Args()) != 2 {
-		fmt.Println("Usage: anvil view [file] [page-title]")
+	if flag.NArg() != 2 {
+		fmt.Println("Usage: anvil view <file> <page title>")
 	} else {
 		view.Search(flag.Args()[0], flag.Args()[1])
 	}
@@ -123,9 +98,8 @@ func View() {
 
 func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string,
 	dbPort *uint) (*os.File, *model.PsqlDB) {
-	if flag.NFlag() < 4 || *dbName == "" || *dbUser == "" || *dbPwd == "" ||
-		len(flag.Args()) == 0 {
-		fmt.Println("Usage: anvil import -d [-h] [-port] -u -p pages-file")
+	if flag.NArg() != 1 || *dbName == "" || *dbUser == "" || *dbPwd == "" {
+		fmt.Println("Usage: anvil import -d [-h] [-port] -u -p <file>")
 		os.Exit(1)
 	}
 
