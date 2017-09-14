@@ -62,8 +62,14 @@ func (flags *AppFlags) GetIntent() func() {
 
 	default:
 		return func() {
-			fmt.Println("Unknown command:", flag.Args()[0])
+			fmt.Println("Unknown command:", command)
 			ShowHelp()
 		}
 	}
+}
+
+// MissingDBCredentials returns true if any flags that are needed to access
+// a database are missing.
+func (flags *AppFlags) MissingDBCredentials() bool {
+	return flags.DBName == "" || flags.DBUser == "" || flags.DBPassword == ""
 }

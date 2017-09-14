@@ -64,13 +64,26 @@ Commands:
 
 // Import processes the contents of an archive.
 func Import(args *AppFlags) {
-	file, psqlDB := parseImportFlags(
-		&args.DBName,
-		&args.DBHost,
-		&args.DBUser,
-		&args.DBPassword,
-		&args.DBPort,
-	)
+	if flag.NArg() != 1 || args.MissingDBCredentials() {
+		fmt.Println("Usage: anvil import -d [-h] [-port] -u -p <file>")
+		os.Exit(1)
+	}
+
+	archive, err := os.Open(flag.Arg(0))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	psqlDB, err := model.NewPsqlDB(model.KeyRing{
+		DatabaseName: args.DBName,
+		Host:         args.DBHost,
+		Port:         args.DBPort,
+		User:         args.DBUser,
+		Password:     args.DBPassword,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	conjugators := inflection.NewConjugators()
 	conjugators.Add(&inflection.Dutch{})
@@ -81,9 +94,8 @@ func Import(args *AppFlags) {
 		log.Fatal(err)
 	}
 
-	parser.ProcessPages(file, vparser)
+	parser.ProcessPages(archive, vparser)
 	vparser.Wait()
-
 }
 
 // View displays content from the archive.
@@ -93,32 +105,4 @@ func View() {
 	} else {
 		view.Search(flag.Args()[0], flag.Args()[1])
 	}
-
-}
-
-func parseImportFlags(dbName, dbHost, dbUser, dbPwd *string,
-	dbPort *uint) (*os.File, *model.PsqlDB) {
-	if flag.NArg() != 1 || *dbName == "" || *dbUser == "" || *dbPwd == "" {
-		fmt.Println("Usage: anvil import -d [-h] [-port] -u -p <file>")
-		os.Exit(1)
-	}
-
-	file, err := os.Open(flag.Arg(0))
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	key := model.KeyRing{
-		DatabaseName: *dbName,
-		Host:         *dbHost,
-		Port:         *dbPort,
-		User:         *dbUser,
-		Password:     *dbPwd,
-	}
-
-	psqlDB, err := model.NewPsqlDB(key)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	return file, psqlDB
 }
