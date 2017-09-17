@@ -97,7 +97,7 @@ paths:
     get:
       tags:
         - words
-      summary: Retrieves all inflections associated with the word
+      summary: Retrieves an inflection table associated with the word
       produces:
         - application/json
       parameters:
@@ -110,6 +110,8 @@ paths:
       responses:
         '200':
           description: success
+          schema:
+            $ref: '#/definitions/InflectionTable'
         '404':
           description: word has no inflections
   /users:
@@ -211,3 +213,28 @@ definitions:
       language:
         type: integer
         format: int64
+  InflectionTable:
+    description: All inflections of an infinitive verb
+    type: object
+    properties:
+      id:
+        type: integer
+        format: int64
+      infinitive:
+        type: string
+      present:
+        $ref: '#/definitions/InflectionTense'
+      past:
+        $ref: '#/definitions/InflectionTense'
+  InflectionTense:
+    description: The inflections of an infinitive verb in a single tense
+    type: object
+    properties:
+      first-person:
+        type: string
+      second-person:
+        type: string
+      third-person:
+        type: string
+      plural:
+        type: string
