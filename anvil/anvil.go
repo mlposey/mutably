@@ -85,8 +85,10 @@ func Import(args *AppFlags) {
 		log.Fatal(err)
 	}
 
-	conjugators := inflection.NewConjugators()
-	conjugators.Add(&inflection.Dutch{})
+	dutch := inflection.NewDutch()
+	conjugators := map[string]inflection.Conjugator{
+		dutch.GetLanguage().String(): dutch,
+	}
 
 	vparser, err := verb.NewVerbParser(psqlDB, runtime.GOMAXPROCS(0),
 		args.PageLimit, conjugators)

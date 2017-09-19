@@ -11,5 +11,5 @@ verbs is naturally suited towards voice technology, so this feature could provid
 much benefit to language learners. Front-end implementations could be done
 for Alexa or voice-controlled mobile applications. In any case, two things are
 needed first:
-1. A method of conjugating verbs for set of languages.
+1. A method of conjugating verbs for a set of languages.
 2. A common API for the front-end applications.

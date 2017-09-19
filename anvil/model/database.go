@@ -2,10 +2,11 @@ package model
 
 // A Database handles queries to a collection of application data.
 type Database interface {
-	InsertLanguage(Language) (languageId int)
+	InsertLanguage(*Language)
 	InsertWord(string) (wordId int)
-	InsertVerb(wordId, languageId int) (verbId int, err error)
-	InsertTemplate(template VerbTemplate, verbId int) error
+	InsertVerb(wordId int, languageId int, tableId int) (verbId int, err error)
+	InsertInfinitive(wordId int, languageId int) (verbId int, tableId int)
+	GetTableId(languageId int, word string) int
 }
 
 // KeyRing contains credentials for connecting to a database.

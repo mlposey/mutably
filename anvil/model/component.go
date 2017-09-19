@@ -4,25 +4,37 @@ import "strings"
 
 // Language is the description of a natural language.
 // This includes things like English, Dutch, and German.
-type Language string
+type Language struct {
+	Id   int
+	text string
+}
 
-// Standardize converts language to a canonical form.
-func (language Language) Standardize() Language {
-	return Language(strings.ToLower(string(language)))
+// NewLanguage creates a new Language instance that is not stored in a Database.
+func NewLanguage(text string) *Language {
+	return &Language{text: text}
+}
+
+// String converts language to a canonical form.
+func (language *Language) String() string {
+	return strings.ToLower(language.text)
 }
 
 // Verb defines a word that is a verb in a specific language.
 type Verb struct {
-	// The language of the verb
-	Language Language
-	// The actual verb string
-	Text string
+	Id         int
+	WordId     int
+	LanguageId int
+	Text       string
+	TableId    int
+	Template   string
 }
 
-// VerbTemplate describes how a verb presents itself in different contexts.
-//
-// Templates can be simple (e.g., {{nl-verb}}) or complex (e.g.,
-// '{{nl-verb form of|n=sg|t=past|m=subj|treden}}').
-// They most often describe some number of grammatical attributes that you
-// can read about here: https://en.wikipedia.org/wiki/Finite_verb#Grammatical_categories
-type VerbTemplate string
+// NewVerb creates a new languageless Verb instance ready to pass to a
+// Conjugator.
+func NewVerb(wordId int, text, template string) *Verb {
+	return &Verb{
+		WordId:   wordId,
+		Text:     text,
+		Template: template,
+	}
+}

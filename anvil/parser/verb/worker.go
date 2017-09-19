@@ -14,8 +14,8 @@ type worker struct {
 	// The application database
 	database model.Database
 
-	// The conjugators that will transform verb templates
-	conjugators *inflection.Conjugators
+	// Maps a canonicalized language to its conjugator
+	conjugators map[string]inflection.Conjugator
 
 	// The current language section in the Page.
 	// Pages can have multiple sections that the Worker will need to
@@ -38,7 +38,7 @@ type worker struct {
 
 // NewWorker creates a worker ready to accept jobs.
 func NewWorker(db model.Database, jobQueue chan parser.Page,
-	conjugators *inflection.Conjugators) worker {
+	conjugators map[string]inflection.Conjugator) worker {
 	return worker{
 		database:          db,
 		conjugators:       conjugators,
@@ -63,62 +63,56 @@ func (wkr worker) Start() {
 func (wkr worker) process(page parser.Page) {
 	content := &page.Revision.Text
 
-	// The contents of the page are split into sections that each start
-	// with a language header.
-	// Each section describes the word as it exists in that language.
-	// An English section would start with a '==English==' header.
+	// Each page defines a word in multiple languages. The definitions are
+	// split into sections that begin with a header.
 	languageHeaders := wkr.languagePattern.FindAllStringIndex(*content, -1)
 
 	sectionCount := len(languageHeaders)
 
-	// Section content exists between two language headers. Thus, we must
+	// Section content exists between two language headers. So we must
 	// create a fake header at the end to grab the last section.
 	languageHeaders = append(languageHeaders, []int{len(*content), 0})
 
-	// The id of the word; -1 means it hasn't been inserted into the database.
-	wordId := -1
-
+	// Pass each verb from the sections to the conjugator with a matching
+	// language.
 	for i := 0; i < sectionCount; i++ {
 		wkr.languageSection =
 			(*content)[languageHeaders[i][1]:languageHeaders[i+1][0]]
 
 		if strings.Contains(wkr.languageSection, "===Verb===") {
-			verb := model.Verb{
-				Language: extractLanguage(content, languageHeaders[i]),
-				Text:     page.Title,
-			}
+			language := model.NewLanguage(
+				(*content)[languageHeaders[i][0]+2 : languageHeaders[i][1]-3],
+			)
 
-			conjugator, err := wkr.conjugators.Get(string(verb.Language))
-			if err != nil {
-				log.Println(err.Error())
+			conjugator, ok := wkr.conjugators[language.String()]
+			if !ok {
+				log.Println("Unsupported language", language.String())
 				continue
 			}
-			// TODO: Find a more efficient place to call this function.
-			languageId := wkr.database.InsertLanguage(verb.Language)
 
-			if wordId == -1 {
-				wordId = wkr.database.InsertWord(page.Title)
-			}
-
-			verbsTemplates := wkr.getTemplates()
-
-			for i := range verbsTemplates {
-				verbId, err := wkr.database.InsertVerb(wordId, languageId)
-				if err != nil {
-					log.Println(err.Error())
-					break
-				}
-				for _, template := range verbsTemplates[i] {
-					err := wkr.database.InsertTemplate(template, verbId)
-					if err != nil {
-						log.Println(err.Error())
-					} else {
-						conjugator.Conjugate(template)
-					}
-				}
+			verbs := wkr.getVerbs(conjugator, page.Title)
+			for _, verb := range verbs {
+				conjugator.Conjugate(verb)
 			}
 		}
 	}
+}
+
+// getVerbs returns a conjugator and collection of verbs that it can
+// process. The verbs come from the current language section.
+// the returned conjugator will be nil if the language is not supported.
+func (wkr worker) getVerbs(conjugator inflection.Conjugator,
+	pageTitle string) []*model.Verb {
+
+	wordId := wkr.database.InsertWord(pageTitle)
+
+	// All verbs in this section that conjugator can conjugate
+	var verbs []*model.Verb
+
+	for _, template := range wkr.getTemplates() {
+		verbs = append(verbs, model.NewVerb(wordId, pageTitle, template))
+	}
+	return verbs
 }
 
 // getTemplates creates a VerbTemplate for each verb template
@@ -131,72 +125,58 @@ func (wkr worker) process(page parser.Page) {
 // {{en-verb}}
 // {{en-verb|lies|lying|lied}}
 // {{inflection of|lier||3|s|pres|subj|lang=fr}}
-func (wkr worker) getTemplates() (templates [][]model.VerbTemplate) {
-	verbSections := wkr.getVerbSections()
-	if len(verbSections) == 0 {
-		return
+func (wkr worker) getTemplates() (templates []string) {
+	verbSection := wkr.getVerbSection() // TODO: only take the first section
+	if verbSection == "" {
+		return templates
 	}
 
-	templates = make([][]model.VerbTemplate, len(verbSections))
+	rawTemps := wkr.templatePattern.FindAllStringSubmatch(verbSection, -1)
+	if rawTemps == nil {
+		return templates
+	}
 
-	for vt, verbSection := range verbSections {
-		rawTemps := wkr.templatePattern.FindAllStringSubmatch(verbSection, -1)
-		if rawTemps == nil {
-			break
-		}
+	base := rawTemps[0][0]
+	templates = append(templates, base)
 
-		base := rawTemps[0][0]
-		templates[vt] = append(templates[vt], model.VerbTemplate(base))
-
-		if wkr.indicativePattern.MatchString(base) {
-			// This is an indicative verb. It can serve as the template
-			// for many tenses and contexts, so there may more template
-			// definitions than just the base.
-			for i := 1; i < len(rawTemps); i++ {
-				var template string
-				if len(rawTemps[i]) == 3 {
-					// ['# {{atemplate}}', '# ', '{{atemplate}}']
-					template = rawTemps[i][2]
-				} else {
-					// ['{{atemplate}}', '{{atemplate}}']
-					template = rawTemps[i][0]
-				}
-				templates[vt] = append(templates[vt],
-					model.VerbTemplate(template))
+	if wkr.indicativePattern.MatchString(base) {
+		// Indicative verbs can define multiple templates. Get them all.
+		for i := 1; i < len(rawTemps); i++ {
+			var template string
+			if len(rawTemps[i]) == 3 {
+				// ['# {{atemplate}}', '# ', '{{atemplate}}']
+				template = rawTemps[i][2]
+			} else {
+				// ['{{atemplate}}', '{{atemplate}}']
+				template = rawTemps[i][0]
 			}
+			templates = append(templates, template)
 		}
 	}
-	return
+
+	return templates
 }
 
 // getVerbSections finds blocks of text within the languageSection that
 // detail a verb. These usually begin with a verb header and end at
 // either the end of the string or the beginning of a new header.
-func (wkr worker) getVerbSections() (sections []string) {
+func (wkr worker) getVerbSection() string {
 	start, end := 0, 0
 	var tmp []int
-	for {
-		// Find start of section.
-		tmp = wkr.verbPattern.FindStringIndex(wkr.languageSection[end:])
-		if tmp == nil {
-			break
-		} else {
-			start = end + tmp[1]
-		}
-		// Find end of section.
-		tmp = wkr.headerPattern.FindStringIndex(wkr.languageSection[start:])
-		if tmp == nil {
-			sections = append(sections, wkr.languageSection[start:])
-			break
-		} else {
-			end = start + tmp[0]
-			sections = append(sections, wkr.languageSection[start:end])
-		}
-	}
-	return
-}
 
-// Find the language header in str.
-func extractLanguage(str *string, indices []int) model.Language {
-	return model.Language((*str)[indices[0]+2 : indices[1]-3]).Standardize()
+	// Find start of section.
+	tmp = wkr.verbPattern.FindStringIndex(wkr.languageSection[end:])
+	if tmp == nil {
+		return ""
+	} else {
+		start = end + tmp[1]
+	}
+	// Find end of section.
+	tmp = wkr.headerPattern.FindStringIndex(wkr.languageSection[start:])
+	if tmp == nil {
+		return wkr.languageSection[start:]
+	} else {
+		end = start + tmp[0]
+		return wkr.languageSection[start:end]
+	}
 }

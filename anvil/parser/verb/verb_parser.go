@@ -33,7 +33,7 @@ type VerbParser struct {
 // begin returning false after it has been called N times.
 // Valid values are: {-1} U [1, INT_MAX]
 func NewVerbParser(db model.Database, threadCount, pageLimit int,
-	conjugators *inflection.Conjugators) (*VerbParser, error) {
+	conjugators map[string]inflection.Conjugator) (*VerbParser, error) {
 	if threadCount < 1 {
 		return nil, errors.New("Thread count for VerbConsumer must be at least 1")
 	}
@@ -49,15 +49,25 @@ func NewVerbParser(db model.Database, threadCount, pageLimit int,
 		PagesConsumed: 0,
 		jobQueue:      make(chan parser.Page, jobQueueSize),
 	}
+	vparser.storeLanguages(db, conjugators)
 	vparser.spawnWorkers(threadCount, db, conjugators)
 
 	return vparser, nil
 }
 
+// storeLanguages adds the languages from conjugators to db.
+func (vparser *VerbParser) storeLanguages(db model.Database,
+	conjugators map[string]inflection.Conjugator) {
+	for _, conjugator := range conjugators {
+		conjugator.SetDatabase(db)
+		db.InsertLanguage(conjugator.GetLanguage())
+	}
+}
+
 // spawnWorkers creates workerCount parallel workers that take jobs from the
 // job queue and store results in db.
 func (vparser *VerbParser) spawnWorkers(workerCount int, db model.Database,
-	conjugators *inflection.Conjugators) {
+	conjugators map[string]inflection.Conjugator) {
 	vparser.waitGroup.Add(workerCount)
 
 	for i := 0; i < workerCount; i++ {

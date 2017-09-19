@@ -8,7 +8,7 @@ import (
 // Dutch.GetLanguages should return at least one language description.
 func TestDutch_hasLanguageDescription(t *testing.T) {
 	d := &inflection.Dutch{}
-	if len(d.GetLanguages()) <= 0 {
+	if d.GetLanguage() == nil {
 		t.Error("Conjugators must have at least one language description.")
 	}
 }
