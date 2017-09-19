@@ -5,8 +5,8 @@ type Database interface {
 	InsertLanguage(*Language)
 	InsertWord(string) (wordId int)
 	InsertVerb(wordId int, languageId int, tableId int) (verbId int, err error)
-	InsertInfinitive(wordId int, languageId int) (verbId int, tableId int)
-	GetTableId(languageId int, word string) int
+	InsertInfinitive(wordId int, languageId int) (tableId int)
+	GetTableId(languageId int, word string) (int, error)
 }
 
 // KeyRing contains credentials for connecting to a database.

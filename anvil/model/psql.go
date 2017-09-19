@@ -78,15 +78,43 @@ func (db *PsqlDB) InsertWord(word string) int {
 	return wordId
 }
 
-// InsertVerb adds a new verb to the database.
+// InsertVerb adds a new verb to the database, returning its id.
+// An error is returning if the verb could not be inserted.
 func (db *PsqlDB) InsertVerb(wordId int, languageId int, tableId int) (int, error) {
-	return -1, nil // TODO
+	var verbId int
+	err := db.QueryRow(
+		`
+		INSERT INTO verbs (word_id, lang_id, conjugation_table)
+		VALUES ($1, $2, $3)
+		RETURNING id
+		`, wordId, languageId, tableId,
+	).Scan(&verbId)
+	return verbId, err
 }
 
-func (db *PsqlDB) InsertInfinitive(wordId int, languageId int) (int, int) {
-	return -1, -1 // TODO
+// InsertInfinitive adds a new infinitive verb to the database.
+// The id of the new verb's conjugation table is returned.
+func (db *PsqlDB) InsertInfinitive(wordId int, languageId int) int {
+	var table int
+	db.QueryRow(`SELECT add_infinitive($1, $2)`, wordId, languageId).Scan(&table)
+	return table
 }
 
-func (db *PsqlDB) GetTableId(languageId int, word string) int {
-	return -1 // TODO
+// GetTableId returns the conjugation table id for the verb identified by
+// languageId and word. An error is returned if the verb does not exist.
+func (db *PsqlDB) GetTableId(languageId int, word string) (int, error) {
+	var tableId int
+	err := db.QueryRow(
+		`
+		SELECT conjugation_table
+		FROM   verbs
+		WHERE  lang_id = $1
+		AND    word_id = (
+			   SELECT id FROM words
+			   WHERE  word = $2
+		)
+		`, languageId, word,
+	).Scan(&tableId)
+
+	return tableId, err
 }
