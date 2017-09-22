@@ -31,10 +31,11 @@ type Verb struct {
 
 // NewVerb creates a new languageless Verb instance ready to pass to a
 // Conjugator.
-func NewVerb(wordId int, text, template string) *Verb {
+func NewVerb(wordId, languageId int, text, template string) *Verb {
 	return &Verb{
-		WordId:   wordId,
-		Text:     text,
-		Template: template,
+		WordId:     wordId,
+		LanguageId: languageId,
+		Text:       text,
+		Template:   template,
 	}
 }

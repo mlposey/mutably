@@ -92,29 +92,55 @@ func (db *PsqlDB) InsertVerb(wordId int, languageId int, tableId int) (int, erro
 	return verbId, err
 }
 
-// InsertInfinitive adds a new infinitive verb to the database.
-// The id of the new verb's conjugation table is returned.
-func (db *PsqlDB) InsertInfinitive(wordId int, languageId int) int {
+// InsertInfinitive adds an infinitive verb to the database.
+// The id of the new verb's conjugation table is returned. If the verb already
+// existed, the id is still returned, but the verb is not inserted.
+func (db *PsqlDB) InsertInfinitive(word string, languageId int) int {
 	var table int
-	db.QueryRow(`SELECT add_infinitive($1, $2)`, wordId, languageId).Scan(&table)
+	// TODO: Return this error.
+	db.QueryRow(`SELECT add_infinitive($1, $2)`, word, languageId).Scan(&table)
 	return table
 }
 
-// GetTableId returns the conjugation table id for the verb identified by
-// languageId and word. An error is returned if the verb does not exist.
-func (db *PsqlDB) GetTableId(languageId int, word string) (int, error) {
-	var tableId int
-	err := db.QueryRow(
-		`
-		SELECT conjugation_table
-		FROM   verbs
-		WHERE  lang_id = $1
-		AND    word_id = (
-			   SELECT id FROM words
-			   WHERE  word = $2
-		)
-		`, languageId, word,
-	).Scan(&tableId)
+func (db *PsqlDB) InsertAsTense(verb *Verb, tense, person string,
+	isPlural bool) error {
+	var tableColumn string
+	if isPlural {
+		tableColumn = "plural"
+	} else {
+		tableColumn = person
+	}
 
-	return tableId, err
+	// TODO: Find out why parameter substitution doesn't work with Exec.
+	//       Note: Query and QueryRow won't commit the results, so those
+	//       aren't options.
+	_, err := db.Exec(fmt.Sprintf(
+		`
+		UPDATE tense_inflections
+		SET %s = %d
+		WHERE id = (
+			SELECT %s FROM conjugation_tables
+			WHERE id = %d
+		)
+		`, tableColumn, verb.WordId, tense, verb.TableId,
+	))
+	return err
+}
+
+// InsertPlural adds word to the plural column of a tense inflection table.
+func (db *PsqlDB) InsertPlural(word, tense string, conjTableId int) error {
+	_, err := db.Exec(fmt.Sprintf(
+		`
+		UPDATE tense_inflections
+		SET plural = (
+			SELECT id FROM words
+			WHERE word = '%s'
+		)
+		WHERE id = (
+			SELECT %s FROM conjugation_tables
+			WHERE id = %d
+		)
+		`, word, tense, conjTableId,
+	))
+	return err
 }

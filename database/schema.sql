@@ -59,42 +59,54 @@ ON DELETE CASCADE;
 
    Returns:
     - The value of the new (or preexisting) verb's conjugation_table column */
-CREATE FUNCTION add_infinitive(_word_id int, _lang_id int) RETURNS INTEGER AS $$
+CREATE OR REPLACE FUNCTION add_infinitive(_word TEXT, _lang_id INTEGER)
+RETURNS INTEGER AS $$
 DECLARE
-    present_id INTEGER;
-    past_id    INTEGER;
-    conj_id    INTEGER;
-    verb_id    INTEGER;
+    _present_id INTEGER;
+    _past_id    INTEGER;
+    _word_id    INTEGER;
+    _conj_id    INTEGER;
+    _verb_id    INTEGER;
 BEGIN
-    -- Check for existence before adding.
-    SELECT conjugation_table FROM verbs
-    WHERE  word_id = _word_id
-    AND    lang_id = _lang_id
-    INTO conj_id;
+    SELECT id FROM words
+    WHERE word = _word
+    INTO _word_id;
 
-    IF FOUND THEN
-        RETURN conj_id;
+    IF NOT FOUND THEN
+        INSERT INTO words (word)
+        VALUES (_word)
+        RETURNING id INTO _word_id;
+    ELSE
+        -- Check for existence before adding.
+        SELECT conjugation_table FROM verbs
+        WHERE  word_id = _word_id
+        AND    lang_id = _lang_id
+        INTO   _conj_id;
+
+        IF FOUND THEN
+            RETURN _conj_id;
+        END IF;
     END IF;
 
     -- Create two tense inflections for present and past tenses.
     INSERT INTO tense_inflections DEFAULT VALUES
-    RETURNING id INTO present_id;
+    RETURNING id INTO _present_id;
     INSERT INTO tense_inflections DEFAULT VALUES
-    RETURNING id INTO past_id;
+    RETURNING id INTO _past_id;
     -- Create a conjugation table with the tense inflections.
     INSERT INTO conjugation_tables (present, past)
-    VALUES (present_id, past_id)
-    RETURNING id INTO conj_id;
+    VALUES (_present_id, _past_id)
+    RETURNING id INTO _conj_id;
     -- Create a verb for the infinitive.
     INSERT INTO verbs (word_id, lang_id, conjugation_table)
-    VALUES (_word_id, _lang_id, conj_id)
-    RETURNING id INTO verb_id;
+    VALUES (_word_id, _lang_id, _conj_id)
+    RETURNING id INTO _verb_id;
     -- Add the verb's id to the conjugation table as an infinitive.
     UPDATE conjugation_tables
-    SET infinitive_id = verb_id
-    WHERE id = conj_id;
+    SET infinitive_id = _verb_id
+    WHERE id = _conj_id;
     -- Return the id of the conjugation table.
-    RETURN conj_id;
+    RETURN _conj_id;
 END;
 $$ LANGUAGE plpgsql;
 

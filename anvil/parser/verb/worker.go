@@ -85,14 +85,15 @@ func (wkr worker) process(page parser.Page) {
 			)
 
 			conjugator, ok := wkr.conjugators[language.String()]
-			if !ok {
-				log.Println("Unsupported language", language.String())
+			if !ok { // The language isn't supported.
 				continue
 			}
 
 			verbs := wkr.getVerbs(conjugator, page.Title)
 			for _, verb := range verbs {
-				conjugator.Conjugate(verb)
+				if err := conjugator.Conjugate(verb); err != nil {
+					log.Println(err)
+				}
 			}
 		}
 	}
@@ -110,7 +111,8 @@ func (wkr worker) getVerbs(conjugator inflection.Conjugator,
 	var verbs []*model.Verb
 
 	for _, template := range wkr.getTemplates() {
-		verbs = append(verbs, model.NewVerb(wordId, pageTitle, template))
+		verbs = append(verbs, model.NewVerb(wordId, conjugator.GetLanguage().Id,
+			pageTitle, template))
 	}
 	return verbs
 }
