@@ -3,6 +3,7 @@ package parser
 import (
 	"encoding/xml"
 	"io"
+	"strings"
 )
 
 // A Parser processes the contents of a Page.
@@ -27,6 +28,10 @@ func ProcessPages(pagesFile io.Reader, parser Parser) error {
 					var page Page
 					decoder.DecodeElement(&page, &elementType)
 
+					if isSpecialPage(&page.Title) {
+						continue
+					}
+
 					cont, err := parser.Parse(page)
 					if err != nil {
 						return err
@@ -39,4 +44,18 @@ func ProcessPages(pagesFile io.Reader, parser Parser) error {
 		}
 	}
 	return nil
+}
+
+func isSpecialPage(pageTitle *string) bool {
+	colonPos := strings.IndexRune(*pageTitle, ':')
+	if colonPos == -1 {
+		return false
+	}
+
+	switch (*pageTitle)[0:colonPos] {
+	case "User", "Template", "Module", "Category", "Thread", "Talk":
+		return true
+	default:
+		return false
+	}
 }
