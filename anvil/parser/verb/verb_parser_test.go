@@ -1,7 +1,6 @@
 package verb_test
 
 import (
-	"fmt"
 	"mutably/anvil/model"
 	"mutably/anvil/model/inflection"
 	"mutably/anvil/parser"
@@ -22,22 +21,18 @@ func TestParse(t *testing.T) {
 		t.Error(err.Error())
 	}
 
-	if len(mdb.verbs) != mockPage.VerbCount {
+	// We subtract one because English defines a verb twice and detecting
+	// multiple verb definitions is on halt for now.
+	if len(mdb.verbs) != mockPage.TemplateCount-1 {
 		t.Error("Expected", mockPage.VerbCount, "verbs, found", len(mdb.verbs))
 	}
-
-	// TODO: Find a new way to test for template identification.
-	//if mdb.TemplateCount() != mockPage.TemplateCount {
-	//	t.Error("Expected", mockPage.TemplateCount, "templates, found",
-	//		mdb.TemplateCount())
-	//}
 }
 
 // VerbParser should not process a section of a page if it is for a language
 // that is undefined.
 func TestVerbParser_NewLanguage(t *testing.T) {
 	emptyConjugators := make(map[string]inflection.Conjugator)
-	mdb := NewMockDB()
+	mdb := newMockDB()
 	parser, e := verb.NewVerbParser(mdb, 2, -1, emptyConjugators)
 	if e != nil {
 		t.Error(e.Error())
@@ -46,35 +41,8 @@ func TestVerbParser_NewLanguage(t *testing.T) {
 	parser.Parse(mockPage.Page)
 	parser.Wait()
 
-	if len(mdb.words) != 0 || len(mdb.verbs) != 0 || len(mdb.templates) != 0 {
+	if len(mdb.words) != 0 || len(mdb.verbs) != 0 {
 		t.Error("Unidentified languages should not be processed.")
-	}
-}
-
-// VerbParser should store both versions of a verb that has multiple meanings.
-// E.g., 'lie', which has two meanings in English, will have two verb
-// sections in the archive. These should produce two different verb entries
-// in the database.
-func TestVerbParser_MultipleMeanings(t *testing.T) {
-	parser, mdb := makeMockParser(t)
-	parser.Parse(mockPage.Page)
-	parser.Wait()
-
-	lieId := -1
-	for i := range mdb.words {
-		if mdb.words[i] == "lie" {
-			lieId = i
-			break
-		}
-	}
-
-	if lieId == -1 {
-		t.Error("VerbParser is not inserting words of known languages.")
-	}
-
-	// English is hardcoded to have index 0 in the NewMockDB method.
-	if len(mdb.verbs[0]) != 2 {
-		t.Error("VerbParser is not adding duplicate verbs with different meanings.")
 	}
 }
 
@@ -87,7 +55,7 @@ func makeMockParser(t *testing.T) (*verb.VerbParser, *mockDB) {
 		conjugators[language.String()] = &mockConjugator{language: language}
 	}
 
-	db := NewMockDB()
+	db := newMockDB()
 
 	vp, e := verb.NewVerbParser(db, 2, -1, conjugators)
 	if e != nil {
@@ -109,59 +77,42 @@ func (m *mockConjugator) SetDatabase(db model.Database) error {
 	return nil
 }
 func (m *mockConjugator) Conjugate(v *model.Verb) error {
-	_, err := m.database.InsertVerb(v.WordId, v.LanguageId)
+	_, err := m.database.InsertVerb(v.WordId, m.GetLanguage().Id, v.TableId)
 	return err
 }
 
 type mockDB struct {
 	languages []*model.Language
 	words     []string
-	verbs     map[int][]int                // languageId -> {wordId...}
-	templates map[model.VerbTemplate][]int // template -> {verbId...}
+	verbs     []int
 }
 
-func NewMockDB() *mockDB {
-	return &mockDB{
-		languages: mockPage.Languages,
-		verbs:     make(map[int][]int),
-		templates: make(map[model.VerbTemplate][]int),
-	}
+func newMockDB() *mockDB {
+	return &mockDB{languages: mockPage.Languages}
 }
 
-func (mdb *mockDB) InsertLanguage(language *model.Language) {
-	for _, lang := range mdb.languages {
-		if lang.String() == language.String() {
-			return
-		}
-	}
-	language.Id = len(mdb.languages)
-	mdb.languages = append(mdb.languages, language)
+func (m *mockDB) InsertLanguage(language *model.Language) {
+	m.languages = append(m.languages, language)
+}
+func (m *mockDB) InsertWord(word string) (wordId int) {
+	m.words = append(m.words, word)
+	return len(m.words) - 1
+}
+func (m *mockDB) InsertVerb(wordId int, languageId int,
+	tableId int) (verbId int, err error) {
+	m.verbs = append(m.verbs, wordId)
+	return len(m.verbs) - 1, nil
 }
 
-func (mdb *mockDB) InsertWord(word string) int {
-	mdb.words = append(mdb.words, word)
-	return len(mdb.words) - 1
+func (m *mockDB) InsertInfinitive(word string, languageId int) (tableId int) {
+	return 0
 }
-
-func (mdb *mockDB) InsertVerb(wordId, languageId int) (int, error) {
-	mdb.verbs[languageId] = append(mdb.verbs[languageId], wordId)
-	fmt.Println(mdb.languages[languageId].String(), mdb.words[wordId])
-	return len(mdb.verbs[languageId]) - 1, nil
-}
-
-func (mdb *mockDB) InsertTemplate(template model.VerbTemplate, verbId int) error {
-	// This doesn't really make a whole ton of sense, but it doesn't need
-	// to for current testing. A more accurate representation of template
-	// storage may be needed if the complexity of VerbParser tests increases.
-	mdb.templates[template] = append(mdb.templates[template], verbId)
+func (m *mockDB) InsertAsTense(verb *model.Verb, tense, person string,
+	isPlural bool) error {
 	return nil
 }
-
-func (mdb *mockDB) TemplateCount() (count int) {
-	for _, v := range mdb.templates {
-		count += len(v)
-	}
-	return
+func (m *mockDB) InsertPlural(word, tense string, tableId int) error {
+	return nil
 }
 
 // A mock page setup. Do not change the contents of Page! Many tests in this
