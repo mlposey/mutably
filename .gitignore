@@ -1,5 +1,6 @@
 # Main Project
 .idea/
+todo
 
 # All Subprojects
 **/cp.out
