@@ -64,21 +64,29 @@ func (dutch *Dutch) Conjugate(verb *model.Verb) error {
 		return nil
 	}
 
-	// It is an infinitive.
 	if verb.Template == "{{nl-verb}}" {
-		verb.TableId = dutch.database.InsertInfinitive(verb.Text,
-			dutch.GetLanguage().Id)
-
-		dutch.tableCache.Lock()
-		dutch.tableCache.m[verb.Text] = verb.TableId
-		dutch.tableCache.Unlock()
-
-		// Note: Past tense plurals are verb forms and won't get caught here.
-		err := dutch.database.InsertPlural(verb.Text, "present", verb.TableId)
-		return err
+		return dutch.handleInfinitive(verb)
+	} else {
+		return dutch.handleFinite(verb)
 	}
+}
 
-	// It is a verb-form.
+// handleInfinitive manages an infinitive verb.
+func (dutch *Dutch) handleInfinitive(verb *model.Verb) error {
+	verb.TableId = dutch.database.InsertInfinitive(verb.Text,
+		dutch.GetLanguage().Id)
+
+	dutch.tableCache.Lock()
+	dutch.tableCache.m[verb.Text] = verb.TableId
+	dutch.tableCache.Unlock()
+
+	// Note: Past tense plurals are verb forms and won't get caught here.
+	err := dutch.database.InsertPlural(verb.Text, "present", verb.TableId)
+	return err
+}
+
+// handleFinite manages a finite verb form.
+func (dutch *Dutch) handleFinite(verb *model.Verb) error {
 	infinitive := dutch.infRef.FindStringSubmatch(verb.Template)
 	if infinitive == nil {
 		log.Println(*verb)
