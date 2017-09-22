@@ -45,7 +45,7 @@ func (dutch *Dutch) GetLanguage() *model.Language {
 	return dutch.language
 }
 
-// SetDatabase assigns to dutch a database where it stores results.
+// SetDatabase assigns to dutch a non-nil database where it stores results.
 func (dutch *Dutch) SetDatabase(db model.Database) error {
 	if db == nil {
 		return errors.New("Dutch conjugator was given nil database object")
