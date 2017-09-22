@@ -5,6 +5,7 @@ import (
 	"log"
 	"mutably/anvil/model"
 	"regexp"
+	"sync"
 )
 
 // Dutch is a conjugator for Dutch verbs.
@@ -17,6 +18,9 @@ type Dutch struct {
 	number *regexp.Regexp
 	tense  *regexp.Regexp
 	infRef *regexp.Regexp
+
+	// A cache of infinitive verbs and their inflection table ids
+	tableCache cache
 }
 
 // NewDutch creates and returns a new Dutch instance.
@@ -28,7 +32,8 @@ func NewDutch() *Dutch {
 		number:   regexp.MustCompile(`n=(.{2})`),
 		tense:    regexp.MustCompile(`t=(.{4})`),
 		// {{nl-verb form of|...|the_infinitive_reference}}
-		infRef: regexp.MustCompile(`\|([^\|]+)}}`),
+		infRef:     regexp.MustCompile(`\|([^\|]+)}}`),
+		tableCache: cache{m: make(map[string]int)},
 	}
 }
 
@@ -47,20 +52,39 @@ func (dutch *Dutch) SetDatabase(db model.Database) error {
 // Conjugate uses the template to build part of the conjugation table that
 // the word belongs to.
 func (dutch *Dutch) Conjugate(verb *model.Verb) error {
+	// It is an infinitive.
 	if verb.Template == "{{nl-verb}}" {
-		// TODO: Add the infinitive as a plural.
 		verb.TableId = dutch.database.InsertInfinitive(verb.Text,
 			dutch.GetLanguage().Id)
+
+		dutch.tableCache.Lock()
+		dutch.tableCache.m[verb.Text] = verb.TableId
+		dutch.tableCache.Unlock()
+
 		// Note: Past tense plurals are verb forms and won't get caught here.
 		err := dutch.database.InsertPlural(verb.Text, "present", verb.TableId)
 		return err
 	}
+
 	// It is a verb-form.
-	matches := dutch.infRef.FindStringSubmatch(verb.Template)
-	if matches == nil || len(matches) != 2 {
+	infinitive := dutch.infRef.FindStringSubmatch(verb.Template)
+	if infinitive == nil {
 		return errors.New("Invalid template for verb " + verb.Text)
 	}
-	verb.TableId = dutch.database.InsertInfinitive(matches[1], verb.LanguageId)
+
+	dutch.tableCache.RLock()
+	if tableId, ok := dutch.tableCache.m[infinitive[1]]; ok {
+		dutch.tableCache.RUnlock()
+		verb.TableId = tableId
+	} else {
+		dutch.tableCache.RUnlock()
+		verb.TableId = dutch.database.InsertInfinitive(infinitive[1],
+			verb.LanguageId)
+
+		dutch.tableCache.Lock()
+		dutch.tableCache.m[infinitive[1]] = verb.TableId
+		dutch.tableCache.Unlock()
+	}
 
 	dutch.addToTable(verb)
 	return nil
@@ -121,4 +145,10 @@ func (dutch *Dutch) addToTable(verb *model.Verb) {
 			}
 		}
 	}
+}
+
+// Used by Dutch for caching table ids
+type cache struct {
+	m map[string]int
+	sync.RWMutex
 }
