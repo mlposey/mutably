@@ -102,6 +102,7 @@ func (db *PsqlDB) InsertInfinitive(word string, languageId int) int {
 	return table
 }
 
+// InsertAsTense adds verb to the correct spot in its conjugation table.
 func (db *PsqlDB) InsertAsTense(verb *Verb, tense, person string,
 	isPlural bool) error {
 	var tableColumn string
