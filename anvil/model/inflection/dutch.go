@@ -57,6 +57,13 @@ func (dutch *Dutch) SetDatabase(db model.Database) error {
 // Conjugate uses a verb's template to construct parts of the conjugation
 // table that it belongs to.
 func (dutch *Dutch) Conjugate(verb *model.Verb) error {
+	// This header isn't useful for Dutch, but in the future it may be for
+	// other languages. Ignore it here rather than in the method that called
+	// this one.
+	if verb.Template == "{{nl-verb-form}}" {
+		return nil
+	}
+
 	// It is an infinitive.
 	if verb.Template == "{{nl-verb}}" {
 		verb.TableId = dutch.database.InsertInfinitive(verb.Text,
@@ -74,6 +81,7 @@ func (dutch *Dutch) Conjugate(verb *model.Verb) error {
 	// It is a verb-form.
 	infinitive := dutch.infRef.FindStringSubmatch(verb.Template)
 	if infinitive == nil {
+		log.Println(*verb)
 		return errors.New("Invalid template for verb " + verb.Text)
 	}
 
