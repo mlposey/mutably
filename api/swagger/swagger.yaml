@@ -32,7 +32,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Language'
-        '400':
+        '404':
           description: no languages exist
           schema:
             $ref: '#/definitions/ErrorResponse'
