@@ -19,7 +19,7 @@ type Database interface {
 
 // PsqlDB implements the Database interface for PostgreSQL.
 type PsqlDB struct {
-	db *sql.DB
+	*sql.DB
 }
 
 // NewDB creates and returns a PsqlDB instance.

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/gorilla/mux"
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 )
 
 // Service controls communication between outside applications (that send HTTP
@@ -57,10 +59,43 @@ func (service *Service) Start() error {
 	return http.ListenAndServe(":"+service.port, service.Router)
 }
 
-func (service *Service) getLanguages_v1(w http.ResponseWriter, r *http.Request) {
-
+// makeJsonResponse creates and sends a json response to a writer.
+func (service *Service) makeJsonResponse(w http.ResponseWriter, code int,
+	respBody interface{}) {
+	marshaledBody, _ := json.Marshal(respBody)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(marshaledBody)
 }
 
-func (service *Service) getLanguage_v1(w http.ResponseWriter, r *http.Request) {
+// GET /api/v1/languages
+func (service *Service) getLanguages_v1(w http.ResponseWriter, r *http.Request) {
+	languages, err := service.db.GetLanguages()
+	if len(languages) == 0 {
+		if err != nil {
+			log.Println(err)
+		}
+		service.makeJsonResponse(w, http.StatusNotFound,
+			NewErrorResponse("no languages exist"))
+	} else {
+		service.makeJsonResponse(w, http.StatusOK, languages)
+	}
+}
 
+// GET /api/v1/languages/{id:[0-9]+}
+func (service *Service) getLanguage_v1(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	languageId, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		service.makeJsonResponse(w, http.StatusBadRequest,
+			NewErrorResponse("invalid language id"))
+	}
+
+	language, err := service.db.GetLanguage(languageId)
+	if err != nil {
+		service.makeJsonResponse(w, http.StatusNotFound,
+			NewErrorResponse("language not found"))
+	} else {
+		service.makeJsonResponse(w, http.StatusOK, language)
+	}
 }

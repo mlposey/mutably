@@ -102,11 +102,11 @@ func TestGetLanguage_v1_exists(t *testing.T) {
 	resp := sendRequest(req)
 	checkCode(t, http.StatusOK, resp.Code)
 
-	var respBody map[string]interface{}
+	var respBody main.Language
 	json.Unmarshal(resp.Body.Bytes(), &respBody)
 
-	if respBody["id"] != langId {
-		t.Errorf("Expected id %d, got %d", langId, respBody["id"])
+	if respBody.Id != langId {
+		t.Errorf("Expected id %d, got %d", langId, respBody.Id)
 	}
 }
 
@@ -131,26 +131,29 @@ func TestGetLanguages_v1_notempty(t *testing.T) {
 	resp := sendRequest(req)
 	checkCode(t, http.StatusOK, resp.Code)
 
-	var respBody []map[string]interface{}
+	var respBody []main.Language
 	json.Unmarshal(resp.Body.Bytes(), &respBody)
 
 	// Make sure it returns a correct array.
 	lang1Count, lang2Count := 0, 0
 	total := 0
-	for i := range respBody {
+	for _, language := range respBody {
 		total++
-		if respBody[i]["id"] == lang1 {
-			lang1Count += 1
+		if language.Id == lang1 {
+			lang1Count++
 		}
-		if respBody[i]["id"] == lang2 {
-			lang2Count += 1
+		if language.Id == lang2 {
+			lang2Count++
 		}
 	}
 
 	if total != 2 {
 		t.Errorf("Expected 2 results, got %d", total)
 	}
-	if lang1Count != 1 || lang2Count != 1 {
-		t.Errorf("Seeing duplicate results for items that exist once")
+	if lang1Count > 1 || lang2Count > 1 {
+		t.Error("Seeing duplicate results for items that exist once")
+	}
+	if lang1Count < 1 || lang2Count < 1 {
+		t.Error("Some languages weren't retrieved")
 	}
 }
