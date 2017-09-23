@@ -322,7 +322,7 @@
           "type": "integer",
           "format": "int64"
         },
-        "description": {
+        "name": {
           "type": "string"
         },
         "tag": {

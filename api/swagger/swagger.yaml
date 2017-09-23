@@ -214,7 +214,7 @@ definitions:
       id:
         type: integer
         format: int64
-      description:
+      name:
         type: string
       tag:
         type: string
