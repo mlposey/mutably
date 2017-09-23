@@ -13,6 +13,8 @@ import (
 // If you find yourself using sql.DB directly instead of using a Database
 // implementation, then you're probably doing something wrong.
 type Database interface {
+	GetLanguage(int) (*Language, error)
+	GetLanguages() ([]*Language, error)
 }
 
 // PsqlDB implements the Database interface for PostgreSQL.
@@ -24,11 +26,11 @@ type PsqlDB struct {
 // A non-nil error is returned if there was a problem connecting to the
 // database.
 func NewDB(host, name, user, password string) (*PsqlDB, error) {
-	credentials :=
-		fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable",
-			name, user, password, host)
+	db, err := sql.Open("postgres", fmt.Sprintf(
+		"dbname=%s user=%s password=%s host=%s sslmode=disable",
+		name, user, password, host,
+	))
 
-	db, err := sql.Open("postgres", credentials)
 	if err != nil {
 		return nil, err
 	}

@@ -6,8 +6,6 @@ services:
     - POSTGRES_USER=test
     - POSTGRES_DB=test
     - POSTGRES_PASSWORD=test
-    volumes:
-        - data:/var/lib/postgresql/data
 
   api-test:
     build:
@@ -20,7 +18,3 @@ services:
     - DATABASE_NAME=test
     - DATABASE_USER=test
     - DATABASE_PASSWORD=test
-
-volumes:
-  data:
-    driver: "local"
