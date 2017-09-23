@@ -10,8 +10,8 @@ import (
 // that both input and output are received according to relative interface
 // specifications.
 //
-// If you find yourself using sql.DB directly then you're probably doing
-// something wrong.
+// If you find yourself using sql.DB directly instead of using a Database
+// implementation, then you're probably doing something wrong.
 type Database interface {
 }
 
