@@ -4,6 +4,8 @@ import (
 	"errors"
 	"github.com/gorilla/mux"
 	"log"
+	"net"
+	"net/http"
 )
 
 // Service controls communication between outside applications (that send HTTP
@@ -27,11 +29,21 @@ func NewService(database Database, port string) (*Service, error) {
 		return nil, errors.New("Service port can't be blank")
 	}
 
-	return nil, nil
+	service := &Service{
+		router: mux.NewRouter(),
+		db:     database,
+		port:   port,
+	}
+
+	return service, nil
 }
 
 // Start opens the service up to send and receive data.
 func (service *Service) Start() error {
 	log.Println("Starting service...")
-	return nil
+	go func() {
+		net.Dial("tcp", "localhost:"+service.port)
+		log.Println("And we're live.")
+	}()
+	return http.ListenAndServe(":"+service.port, service.router)
 }
