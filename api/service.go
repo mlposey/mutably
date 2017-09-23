@@ -38,7 +38,7 @@ func NewService(database Database, port string) (*Service, error) {
 	return service, nil
 }
 
-// Start opens the service up to send and receive data.
+// Start makes service begin listening for connections on the specified port.
 func (service *Service) Start() error {
 	log.Println("Starting service...")
 	go func() {
