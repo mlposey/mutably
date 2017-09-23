@@ -34,6 +34,8 @@ paths:
               $ref: '#/definitions/Language'
         '400':
           description: no languages exist
+          schema:
+            $ref: '#/definitions/ErrorResponse'
   '/languages/{id}':
     get:
       tags:
@@ -55,6 +57,8 @@ paths:
             $ref: '#/definitions/Language'
         '404':
           description: language not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
   /words:
     get:
       tags:
@@ -72,6 +76,8 @@ paths:
               $ref: '#/definitions/Word'
         '400':
           description: no words exist
+          schema:
+            $ref: '#/definitions/ErrorResponse'
   '/words{id}':
     get:
       tags:
@@ -93,6 +99,8 @@ paths:
             $ref: '#/definitions/Word'
         '404':
           description: word not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
   '/words/{id}/inflections':
     get:
       tags:
@@ -114,6 +122,8 @@ paths:
             $ref: '#/definitions/InflectionTable'
         '404':
           description: word has no inflections
+          schema:
+            $ref: '#/definitions/ErrorResponse'
   /users:
     get:
       tags:
@@ -131,6 +141,8 @@ paths:
               $ref: '#/definitions/User'
         '404':
           description: no users exist
+          schema:
+            $ref: '#/definitions/ErrorResponse'
     post:
       tags:
         - users
@@ -151,6 +163,8 @@ paths:
       responses:
         '405':
           description: invalid user definition
+          schema:
+            $ref: '#/definitions/ErrorResponse'
   '/users/{id}':
     get:
       tags:
@@ -172,6 +186,8 @@ paths:
             $ref: '#/definitions/User'
         '404':
           description: user not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
 definitions:
   User:
     type: object
@@ -237,4 +253,10 @@ definitions:
       third-person:
         type: string
       plural:
+        type: string
+  ErrorResponse:
+    description: A detailed error message
+    type: object
+    properties:
+      error:
         type: string
