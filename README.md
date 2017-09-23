@@ -18,6 +18,7 @@ The project has three components for now:
 * database
 * anvil
 * api
+
 `database` uses Docker and PostgreSQL to define the production database environment.
 You can refer to the .sql schema files there for details on how data is managed
 by the project. The next componenet, `anvil`, is a tool for sifting through
