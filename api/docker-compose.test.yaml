@@ -1,0 +1,26 @@
+version: '3'
+services:
+  database:
+    build: ../database
+    environment:
+    - POSTGRES_USER=test
+    - POSTGRES_DB=test
+    - POSTGRES_PASSWORD=test
+    volumes:
+        - data:/var/lib/postgresql/data
+
+  api-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    depends_on:
+    - database
+    environment:
+    - DATABASE_HOST=database
+    - DATABASE_NAME=test
+    - DATABASE_USER=test
+    - DATABASE_PASSWORD=test
+
+volumes:
+  data:
+    driver: "local"

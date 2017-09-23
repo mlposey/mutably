@@ -1,0 +1,16 @@
+# This image is used by the test docker-compose file to test the API.
+FROM golang:1.9
+
+RUN apt-get update && apt-get install -y \
+    git \
+    bash
+
+WORKDIR /go/src/mutably/api/ 
+COPY . .
+RUN go-wrapper download
+
+RUN git clone https://github.com/vishnubob/wait-for-it.git \
+ && mv wait-for-it/wait-for-it.sh .
+
+ENTRYPOINT /bin/bash wait-for-it.sh $DATABASE_HOST:5432 -t 0 -- go test -v .
+

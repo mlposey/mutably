@@ -24,8 +24,9 @@ type PsqlDB struct {
 // A non-nil error is returned if there was a problem connecting to the
 // database.
 func NewDB(host, name, user, password string) (*PsqlDB, error) {
-	credentials := fmt.Sprintf("dbname=%s user=%s password=%s host=%s",
-		name, user, password, host)
+	credentials :=
+		fmt.Sprintf("dbname=%s user=%s password=%s host=%s sslmode=disable",
+			name, user, password, host)
 
 	db, err := sql.Open("postgres", credentials)
 	if err != nil {
