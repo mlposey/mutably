@@ -4,4 +4,4 @@ ENV POSTGRES_INITDB_ARGS "-E UTF8"
 
 RUN apk add --no-cache bash
 
-ADD schema.sql /docker-entrypoint-initdb.d/ 
+ADD 0_core_schema.sql /docker-entrypoint-initdb.d/ 

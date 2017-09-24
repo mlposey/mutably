@@ -53,12 +53,18 @@ ON DELETE CASCADE;
 
 ----------------------- Function Definitions --------------------------
 
-/* addInfinitive creates a conjugation table and verb entry for a
-   word that is marked as an infinitive verb. If the verb already
-   exists, a new one is not added.
-
-   Returns:
-    - The value of the new (or preexisting) verb's conjugation_table column */
+/* add_infinitive creates a new infinitive verb.
+ *
+ * The verb is assigned a new conjugation table that is populated with the ids
+ * of new (but empty) tense inflection rows. However, if the verb already
+ * existed, nothing is created.
+ *
+ * params:
+ *      _word the text of a word which may or may not be in the words table
+ *      _lang_id the id of a language in the languages table
+ *
+ * returns: The id of the verb's conjugation table
+ */
 CREATE OR REPLACE FUNCTION add_infinitive(_word TEXT, _lang_id INTEGER)
 RETURNS INTEGER AS $$
 DECLARE
