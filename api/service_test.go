@@ -55,35 +55,10 @@ func checkCode(t *testing.T, expected, actual int) {
 	}
 }
 
-func clearLanguages(t *testing.T) {
-	t.Helper()
-	_, err := db.Exec("DELETE FROM languages")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func addLanguage(t *testing.T) (id int, name string) {
-	t.Helper()
-	name = uuid.NewV4().String()
-
-	err := db.QueryRow(`
-		INSERT INTO languages (language, tag)
-		VALUES ($1, $2)
-		RETURNING id`,
-		name, uuid.NewV4().String(),
-	).Scan(&id)
-
-	if err != nil {
-		t.Error(err)
-	}
-	return id, name
-}
-
 // APIv1 should return a 404 response code if a specific language
 // is requested but does not exist.
 func TestGetLanguage_v1_missing(t *testing.T) {
-	clearLanguages(t)
+	clearTable(t, "languages")
 
 	req, _ := http.NewRequest("GET", "/api/v1/languages/3", nil)
 	resp := sendRequest(req)
@@ -113,7 +88,7 @@ func TestGetLanguage_v1_exists(t *testing.T) {
 // APIv1 should return a 404 response code if a collection of all languages
 // is requested but the database has none.
 func TestGetLanguages_v1_empty(t *testing.T) {
-	clearLanguages(t)
+	clearTable(t, "languages")
 
 	req, _ := http.NewRequest("GET", "/api/v1/languages", nil)
 	resp := sendRequest(req)
@@ -123,7 +98,7 @@ func TestGetLanguages_v1_empty(t *testing.T) {
 // APIv1 should return a 200 response code along with an array of all stored
 // languages if any exist.
 func TestGetLanguages_v1_notempty(t *testing.T) {
-	clearLanguages(t)
+	clearTable(t, "languages")
 	lang1, _ := addLanguage(t)
 	lang2, _ := addLanguage(t)
 
@@ -156,4 +131,117 @@ func TestGetLanguages_v1_notempty(t *testing.T) {
 	if lang1Count < 1 || lang2Count < 1 {
 		t.Error("Some languages weren't retrieved")
 	}
+}
+
+// APIv1 should return a 404 response code if the database contains no words.
+func TestGetWords_v1_empty(t *testing.T) {
+	clearTable(t, "words")
+
+	req, _ := http.NewRequest("GET", "/api/v1/words", nil)
+	resp := sendRequest(req)
+	checkCode(t, http.StatusNotFound, resp.Code)
+}
+
+// APIv1 should return a 200 response code along with an array of all words
+// if any exist.
+func TestGetWords_v1_notempty(t *testing.T) {
+	clearTable(t, "words")
+	wordId, _ := addWord(t)
+
+	req, _ := http.NewRequest("GET", "/api/v1/words", nil)
+	resp := sendRequest(req)
+	checkCode(t, http.StatusOK, resp.Code)
+
+	var words []main.Word
+	json.Unmarshal(resp.Body.Bytes(), &words)
+
+	if len(words) == 0 {
+		t.Errorf("Failed to retrieve words")
+	}
+
+	if words[0].Id != wordId {
+		t.Errorf("Expected word id %d, got %d", wordId, words[0].Id)
+	}
+}
+
+// APIv1 should return a 404 response code if a requested word does not exist.
+func TestGetWord_v1_empty(t *testing.T) {
+	clearTable(t, "words")
+
+	req, _ := http.NewRequest("GET", "/api/v1/words/3", nil)
+	resp := sendRequest(req)
+	checkCode(t, http.StatusNotFound, resp.Code)
+}
+
+// APIv1 should return a 200 response code along with the requested word if
+// it exists.
+func TestGetWord_v1_notempty(t *testing.T) {
+	clearTable(t, "words")
+	wordId, _ := addWord(t)
+	addWord(t)
+	addWord(t)
+
+	req, _ := http.NewRequest("GET", "/api/v1/words/"+strconv.Itoa(wordId), nil)
+	resp := sendRequest(req)
+	checkCode(t, http.StatusOK, resp.Code)
+
+	var word main.Word
+	json.Unmarshal(resp.Body.Bytes(), &word)
+
+	if word.Id != wordId {
+		t.Errorf("Expected word id %d, got %d", wordId, word.Id)
+	}
+}
+
+func clearTable(t *testing.T, table string) {
+	t.Helper()
+	_, err := db.Exec("DELETE FROM " + table)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func addWord(t *testing.T) (int, int) {
+	t.Helper()
+
+	langId, _ := addLanguage(t)
+	word := uuid.NewV4().String()
+
+	var tableId int
+	err := db.QueryRow(`
+		SELECT add_infinitive($1, $2)`,
+		word, langId,
+	).Scan(&tableId)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var wordId int
+	err = db.QueryRow(`
+		SELECT word_id FROM verbs
+		WHERE  conjugation_table = $1`,
+		tableId,
+	).Scan(&wordId)
+	if err != nil {
+		t.Error(err)
+	}
+
+	return wordId, langId
+}
+
+func addLanguage(t *testing.T) (id int, name string) {
+	t.Helper()
+	name = uuid.NewV4().String()
+
+	err := db.QueryRow(`
+		INSERT INTO languages (language, tag)
+		VALUES ($1, $2)
+		RETURNING id`,
+		name, uuid.NewV4().String(),
+	).Scan(&id)
+
+	if err != nil {
+		t.Error(err)
+	}
+	return id, name
 }

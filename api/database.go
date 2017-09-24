@@ -15,6 +15,8 @@ import (
 type Database interface {
 	GetLanguage(int) (*Language, error)
 	GetLanguages() ([]*Language, error)
+	GetWord(int) (*Word, error)
+	GetWords() ([]*Word, error)
 }
 
 // PsqlDB implements the Database interface for PostgreSQL.

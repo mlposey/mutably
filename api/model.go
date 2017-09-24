@@ -45,7 +45,7 @@ func (db *PsqlDB) GetLanguages() ([]*Language, error) {
 	for rows.Next() {
 		lang := &Language{}
 
-		err := rows.Scan(&lang.Id, &lang.Name, &lang.Tag)
+		err = rows.Scan(&lang.Id, &lang.Name, &lang.Tag)
 		if err != nil {
 			return nil, err
 		}
@@ -53,4 +53,57 @@ func (db *PsqlDB) GetLanguages() ([]*Language, error) {
 	}
 
 	return languages, nil
+}
+
+// Word models a word from a specific language.
+type Word struct {
+	// The id of the row containing the word
+	Id int `json:"id"`
+	// The word itself
+	Text string `json:"text"`
+	// The id of the word's language
+	LanguageId int `json:"language"`
+}
+
+// GetWords returns a slice of all words in the database.
+func (db *PsqlDB) GetWords() ([]*Word, error) {
+	rows, err := db.Query(`
+		SELECT words.id, words.word, languages.id
+		FROM verbs
+		JOIN words     on verbs.word_id = words.id
+		JOIN languages on verbs.lang_id = languages.id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var words []*Word
+	for rows.Next() {
+		word := &Word{}
+		err = rows.Scan(&word.Id, &word.Text, &word.LanguageId)
+		if err != nil {
+			return nil, err
+		}
+		words = append(words, word)
+	}
+
+	return words, nil
+}
+
+// GetWord returns from the database a word identified by id.
+func (db *PsqlDB) GetWord(id int) (*Word, error) {
+	word := &Word{}
+	err := db.QueryRow(`
+		SELECT words.id, words.word, languages.id
+		FROM verbs
+		JOIN words     on verbs.word_id = $1
+		JOIN languages on verbs.lang_id = languages.id`,
+		id,
+	).Scan(&word.Id, &word.Text, &word.LanguageId)
+
+	if err != nil {
+		return nil, err
+	}
+	return word, nil
 }

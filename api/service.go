@@ -47,6 +47,14 @@ func (s *Service) registerV1Routes() {
 
 	v1.HandleFunc("/languages", s.getLanguages_v1).Methods("GET")
 	v1.HandleFunc("/languages/{id:[0-9]+}", s.getLanguage_v1).Methods("GET")
+
+	v1.HandleFunc("/words", s.getWords_v1).Methods("GET")
+	v1.HandleFunc("/words/{id:[0-9]+}", s.getWord_v1).Methods("GET")
+	// TODO: GET /words/{id:[0-9]+}/inflections
+
+	// TODO: GET /users
+	// TODO: POST /users
+	// TODO: GET /users/{id:[0-9]+}
 }
 
 // Start makes service begin listening for connections on the specified port.
@@ -97,5 +105,37 @@ func (service *Service) getLanguage_v1(w http.ResponseWriter, r *http.Request) {
 			NewErrorResponse("language not found"))
 	} else {
 		service.makeJsonResponse(w, http.StatusOK, language)
+	}
+}
+
+// GET /api/v1/words
+func (service *Service) getWords_v1(w http.ResponseWriter, r *http.Request) {
+	words, err := service.db.GetWords()
+	if len(words) == 0 {
+		if err != nil {
+			log.Println(err)
+		}
+		service.makeJsonResponse(w, http.StatusNotFound,
+			NewErrorResponse("no words exist"))
+	} else {
+		service.makeJsonResponse(w, http.StatusOK, words)
+	}
+}
+
+// GET /api/v1/words/{id:[0-9]+}
+func (service *Service) getWord_v1(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	wordId, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		service.makeJsonResponse(w, http.StatusBadRequest,
+			NewErrorResponse("invalid word id"))
+	}
+
+	word, err := service.db.GetWord(wordId)
+	if err != nil {
+		service.makeJsonResponse(w, http.StatusNotFound,
+			NewErrorResponse("word not found"))
+	} else {
+		service.makeJsonResponse(w, http.StatusOK, word)
 	}
 }
