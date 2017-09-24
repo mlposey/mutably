@@ -74,7 +74,7 @@ paths:
             type: array
             items:
               $ref: '#/definitions/Word'
-        '400':
+        '404':
           description: no words exist
           schema:
             $ref: '#/definitions/ErrorResponse'

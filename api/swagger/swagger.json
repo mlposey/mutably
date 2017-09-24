@@ -112,7 +112,7 @@
               }
             }
           },
-          "400": {
+          "404": {
             "description": "no words exist",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
