@@ -19,6 +19,7 @@ type Service struct {
 	Router *mux.Router
 	db     Database
 	port   string
+	auth   *AuthLayer
 }
 
 // NewService creates and returns a Service instance.
@@ -37,6 +38,7 @@ func NewService(database Database, port string) (*Service, error) {
 		Router: mux.NewRouter(),
 		db:     database,
 		port:   port,
+		auth:   NewAuthLayer(),
 	}
 
 	service.registerV1Routes()
@@ -188,6 +190,8 @@ func (service *Service) createUser_v1(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
+	// TODO: Put the user id in a claim.
+	service.auth.GenerateToken(w)
 }
 
 // GET /api/v1/users/{id}
