@@ -2,6 +2,7 @@ package main_test
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	_ "github.com/lib/pq"
@@ -253,13 +254,37 @@ func TestGetUser_v1_notempty(t *testing.T) {
 	}
 }
 
+// APIv1 should return a status created code if asked to create a user with
+// name that is not in the database.
 func TestCreateUser_v1_unique(t *testing.T) {
-	// TODO
+	clearTable(t, "users")
+
+	req, _ := http.NewRequest("POST", "/api/v1/users", nil)
+	cred := base64.StdEncoding.EncodeToString([]byte("user:pass"))
+	req.Header.Set("Authorization", "Basic "+cred)
+
+	resp := sendRequest(req)
+	checkCode(t, http.StatusCreated, resp.Code)
 }
 
+// APIv1 should return a bad request code if asked to create a user with a
+// name that already exists.
 func TestCreateUser_v1_duplicate(t *testing.T) {
-	// TODO
+	clearTable(t, "users")
+
+	var resp *httptest.ResponseRecorder
+	for i := 0; i < 2; i++ {
+		req, _ := http.NewRequest("POST", "/api/v1/users", nil)
+		cred := base64.StdEncoding.EncodeToString([]byte("user:pass"))
+		req.Header.Set("Authorization", "Basic "+cred)
+
+		resp = sendRequest(req)
+	}
+	checkCode(t, http.StatusBadRequest, resp.Code)
 }
+
+// TODO: Test POST /users bad or missing authorization header.
+// TODO: Test POST /users bad username:password format
 
 func clearTable(t *testing.T, table string) {
 	t.Helper()
