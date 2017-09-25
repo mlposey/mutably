@@ -192,12 +192,11 @@ definitions:
   User:
     type: object
     required:
-      - handle
+      - name
     properties:
       id:
-        type: integer
-        format: int64
-      handle:
+        type: string
+      name:
         type: string
       lang-from:
         type: integer
