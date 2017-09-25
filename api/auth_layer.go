@@ -1,7 +1,7 @@
 package main
 
 import (
-	//"github.com/auth0/go-jwt-middleware"
+	"github.com/auth0/go-jwt-middleware"
 	"github.com/dgrijalva/jwt-go"
 	"net/http"
 	"os"
@@ -11,15 +11,23 @@ import (
 // AuthLayer handles API authorization and jwt token management.
 type AuthLayer struct {
 	PrivateKey string
+	middleware *jwtmiddleware.JWTMiddleware
 }
 
 // Creates and returns a new AuthLayer instance.
 // The method expects a private key environment variable to be set.
 func NewAuthLayer() *AuthLayer {
 	// TODO: What do we do if they var isn't set?
-	return &AuthLayer{
+	auth := &AuthLayer{
 		PrivateKey: os.Getenv("API_PRIVATE_KEY"),
 	}
+	auth.middleware = jwtmiddleware.New(jwtmiddleware.Options{
+		ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
+			return auth.PrivateKey, nil
+		},
+		SigningMethod: jwt.SigningMethodHS256,
+	})
+	return auth
 }
 
 // GenerateToken creates a one-hour jwt token signed with auth.PrivateKey.
@@ -33,4 +41,9 @@ func (auth *AuthLayer) GenerateToken(w http.ResponseWriter) {
 	signedToken, _ := token.SignedString([]byte(auth.PrivateKey))
 
 	w.Write([]byte(signedToken))
+}
+
+// Authenticate validates the handler's jwt token and proceeds if checks pass.
+func (auth *AuthLayer) Authenticate(handler http.HandlerFunc) http.Handler {
+	return auth.middleware.Handler(handler)
 }

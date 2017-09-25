@@ -56,8 +56,9 @@ func (s *Service) registerV1Routes() {
 	v1.HandleFunc("/words/{id:[0-9]+}", s.getWord_v1).Methods("GET")
 	// TODO: GET /words/{id:[0-9]+}/inflections
 
-	v1.HandleFunc("/users", s.getUsers_v1).Methods("GET")
+	v1.Handle("/users", s.auth.Authenticate(s.getUsers_v1)).Methods("GET")
 	v1.HandleFunc("/users", s.createUser_v1).Methods("POST")
+	// TODO: Create a way to restrict access to this.
 	v1.HandleFunc("/users/{id}", s.getUser_v1).Methods("GET")
 }
 
