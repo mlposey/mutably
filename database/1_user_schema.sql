@@ -13,11 +13,14 @@ INSERT INTO roles (role) VALUES
 ('admin'), ('user');
 
 CREATE TABLE users (
+    -- Even though name is unique, use id for foreign keys. The name may change;
+    -- this shouldn't.
     id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     role_id int NOT NULL REFERENCES roles(id),
     name text NOT NULL UNIQUE,
     target_language_id int REFERENCES languages(id),
-    password text NOT NULL
+    password text NOT NULL,
+    created_at timestamp NOT NULL DEFAULT NOW()
 );
 
 /* create_user creates a new user with a default 'user' role.

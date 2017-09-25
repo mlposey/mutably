@@ -52,9 +52,9 @@ func (s *Service) registerV1Routes() {
 	v1.HandleFunc("/words/{id:[0-9]+}", s.getWord_v1).Methods("GET")
 	// TODO: GET /words/{id:[0-9]+}/inflections
 
-	// TODO: GET /users
-	// TODO: POST /users
-	// TODO: GET /users/{id:[0-9]+}
+	v1.HandleFunc("/users", s.getUsers_v1).Methods("GET")
+	v1.HandleFunc("/users", s.createUser_v1).Methods("POST")
+	v1.HandleFunc("/users/{id}", s.getUser_v1).Methods("GET")
 }
 
 // Start makes service begin listening for connections on the specified port.
@@ -76,18 +76,30 @@ func (service *Service) makeJsonResponse(w http.ResponseWriter, code int,
 	w.Write(marshaledBody)
 }
 
-// GET /api/v1/languages
-func (service *Service) getLanguages_v1(w http.ResponseWriter, r *http.Request) {
-	languages, err := service.db.GetLanguages()
-	if len(languages) == 0 {
+// getAggregate faciliates 'get all' functionality on a resource.
+// Its arguments are:
+//   w - the writer to output results to
+//   objects - a slice of the objects requested
+//   length - the number of objects
+//   err - any error returned when acquiring the objects; can be nil
+//   resource - the name of the resource (e.g., 'words')
+func (service *Service) respondWithAggregate(w http.ResponseWriter,
+	objects interface{}, length int, err error, resource string) {
+	if length == 0 {
 		if err != nil {
 			log.Println(err)
 		}
 		service.makeJsonResponse(w, http.StatusNotFound,
-			NewErrorResponse("no languages exist"))
+			NewErrorResponse("no "+resource+" exist"))
 	} else {
-		service.makeJsonResponse(w, http.StatusOK, languages)
+		service.makeJsonResponse(w, http.StatusOK, objects)
 	}
+}
+
+// GET /api/v1/languages
+func (service *Service) getLanguages_v1(w http.ResponseWriter, r *http.Request) {
+	languages, err := service.db.GetLanguages()
+	service.respondWithAggregate(w, languages, len(languages), err, "languages")
 }
 
 // GET /api/v1/languages/{id:[0-9]+}
@@ -111,15 +123,7 @@ func (service *Service) getLanguage_v1(w http.ResponseWriter, r *http.Request) {
 // GET /api/v1/words
 func (service *Service) getWords_v1(w http.ResponseWriter, r *http.Request) {
 	words, err := service.db.GetWords()
-	if len(words) == 0 {
-		if err != nil {
-			log.Println(err)
-		}
-		service.makeJsonResponse(w, http.StatusNotFound,
-			NewErrorResponse("no words exist"))
-	} else {
-		service.makeJsonResponse(w, http.StatusOK, words)
-	}
+	service.respondWithAggregate(w, words, len(words), err, "words")
 }
 
 // GET /api/v1/words/{id:[0-9]+}
@@ -137,5 +141,29 @@ func (service *Service) getWord_v1(w http.ResponseWriter, r *http.Request) {
 			NewErrorResponse("word not found"))
 	} else {
 		service.makeJsonResponse(w, http.StatusOK, word)
+	}
+}
+
+// GET /api/v1/users
+func (service *Service) getUsers_v1(w http.ResponseWriter, r *http.Request) {
+	users, err := service.db.GetUsers()
+	service.respondWithAggregate(w, users, len(users), err, "users")
+}
+
+// POST /api/v1/users
+func (service *Service) createUser_v1(w http.ResponseWriter, r *http.Request) {
+	// TODO
+}
+
+// GET /api/v1/users/{id}
+func (service *Service) getUser_v1(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	user, err := service.db.GetUser(vars["id"])
+	if err != nil {
+		service.makeJsonResponse(w, http.StatusNotFound,
+			NewErrorResponse("user not found"))
+	} else {
+		service.makeJsonResponse(w, http.StatusOK, user)
 	}
 }

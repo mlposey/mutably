@@ -17,6 +17,8 @@ type Database interface {
 	GetLanguages() ([]*Language, error)
 	GetWord(int) (*Word, error)
 	GetWords() ([]*Word, error)
+	GetUser(string) (*User, error)
+	GetUsers() ([]*User, error)
 }
 
 // PsqlDB implements the Database interface for PostgreSQL.

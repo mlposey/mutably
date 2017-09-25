@@ -156,7 +156,7 @@ func TestGetWords_v1_notempty(t *testing.T) {
 	json.Unmarshal(resp.Body.Bytes(), &words)
 
 	if len(words) == 0 {
-		t.Errorf("Failed to retrieve words")
+		t.Fatalf("Failed to retrieve words")
 	}
 
 	if words[0].Id != wordId {
@@ -193,12 +193,96 @@ func TestGetWord_v1_notempty(t *testing.T) {
 	}
 }
 
+// APIv1 should return a 404 response code if the database contains no users.
+func TestGetUsers_v1_empty(t *testing.T) {
+	clearTable(t, "users")
+
+	req, _ := http.NewRequest("GET", "/api/v1/users", nil)
+	resp := sendRequest(req)
+	checkCode(t, http.StatusNotFound, resp.Code)
+}
+
+// APIv1 should return a 200 response code along with an array of all users
+// if any exist.
+func TestGetUsers_v1_notempty(t *testing.T) {
+	clearTable(t, "users")
+	userId, _ := addUser(t)
+
+	req, _ := http.NewRequest("GET", "/api/v1/users", nil)
+	resp := sendRequest(req)
+	checkCode(t, http.StatusOK, resp.Code)
+
+	var users []main.User
+	json.Unmarshal(resp.Body.Bytes(), &users)
+
+	if len(users) == 0 {
+		t.Fatalf("Failed to retrieve users")
+	}
+
+	if users[0].Id != userId {
+		t.Errorf("Expected user id %s, got %s", userId, users[0].Id)
+	}
+}
+
+// APIv1 should return a 404 response code if a requested user does not exist.
+func TestGetUser_v1_empty(t *testing.T) {
+	clearTable(t, "users")
+
+	req, _ := http.NewRequest("GET", "/api/v1/users/abd", nil)
+	resp := sendRequest(req)
+	checkCode(t, http.StatusNotFound, resp.Code)
+}
+
+// APIv1 should return a 200 response code along with the requested user if
+// they exist.
+func TestGetUser_v1_notempty(t *testing.T) {
+	clearTable(t, "users")
+	userId, _ := addUser(t)
+	addUser(t)
+	addUser(t)
+
+	req, _ := http.NewRequest("GET", "/api/v1/users/"+userId, nil)
+	resp := sendRequest(req)
+	checkCode(t, http.StatusOK, resp.Code)
+
+	var user main.User
+	json.Unmarshal(resp.Body.Bytes(), &user)
+
+	if user.Id != userId {
+		t.Errorf("Expected user id %s, got %s", userId, user.Id)
+	}
+}
+
+func TestCreateUser_v1_unique(t *testing.T) {
+	// TODO
+}
+
+func TestCreateUser_v1_duplicate(t *testing.T) {
+	// TODO
+}
+
 func clearTable(t *testing.T, table string) {
 	t.Helper()
 	_, err := db.Exec("DELETE FROM " + table)
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func addUser(t *testing.T) (string, string) {
+	t.Helper()
+
+	userPassword := uuid.NewV4().String()
+	var userId string
+
+	err := db.QueryRow(`
+		SELECT create_user($1, $2)`,
+		uuid.NewV4().String(), userPassword,
+	).Scan(&userId)
+	if err != nil {
+		t.Error(err)
+	}
+	return userId, userPassword
 }
 
 func addWord(t *testing.T) (int, int) {
