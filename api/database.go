@@ -20,6 +20,7 @@ type Database interface {
 	GetUser(string) (*User, error)
 	GetUsers() ([]*User, error)
 	CreateUser(string, string) (string, error)
+	IsAdmin(string) bool
 }
 
 // PsqlDB implements the Database interface for PostgreSQL.

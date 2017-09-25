@@ -177,11 +177,28 @@ func (db *PsqlDB) GetUser(id string) (*User, error) {
 	return user, nil
 }
 
-// CreateUser inserts a new user into the database.
+// CreateUser inserts a new user into the database and returns their id.
 // Duplicate names are not allowed; attempting to insert one will result
 // in a non-nil error.
 func (db *PsqlDB) CreateUser(name, password string) (string, error) {
 	var userId string
 	err := db.QueryRow(`SELECT create_user($1, $2)`, name, password).Scan(&userId)
 	return userId, err
+}
+
+// IsAdmin returns true if the user has administrator pivileges.
+func (db *PsqlDB) IsAdmin(userId string) bool {
+	var role string
+	err := db.QueryRow(`
+		SELECT role FROM roles
+		WHERE id = (
+			SELECT role_id FROM users
+			WHERE id = $1
+		)`, userId,
+	).Scan(&role)
+	if err != nil {
+		return false
+	}
+
+	return role == "admin"
 }

@@ -151,8 +151,14 @@ func (service *Service) getWord_v1(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/v1/users
 func (service *Service) getUsers_v1(w http.ResponseWriter, r *http.Request) {
-	users, err := service.db.GetUsers()
-	service.respondWithAggregate(w, users, len(users), err, "users")
+	claims, err := service.auth.GetClaims(r)
+	if err != nil || service.db.IsAdmin(claims["id"].(string)) {
+		users, err := service.db.GetUsers()
+		service.respondWithAggregate(w, users, len(users), err, "users")
+	} else {
+		service.makeJsonResponse(w, http.StatusForbidden,
+			NewErrorResponse("resource requires admin privileges"))
+	}
 }
 
 // POST /api/v1/users
@@ -184,15 +190,15 @@ func (service *Service) createUser_v1(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create resource.
-	_, err = service.db.CreateUser(credentials[0], credentials[1])
+	var userId string
+	userId, err = service.db.CreateUser(credentials[0], credentials[1])
 	if err != nil {
 		service.makeJsonResponse(w, http.StatusBadRequest,
 			NewErrorResponse(err.Error()))
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	// TODO: Put the user id in a claim.
-	service.auth.GenerateToken(w)
+	service.auth.GenerateTokenWithClaim(w, map[string]interface{}{"id": userId})
 }
 
 // GET /api/v1/users/{id}
