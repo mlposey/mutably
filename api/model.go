@@ -21,7 +21,7 @@ type Language struct {
 	Name string `json:"name"`
 
 	// The language tag (e.g., 'en')
-	Tag string `json:"tag"`
+	Tag sql.NullString `json:"tag"`
 }
 
 // GetLanguage returns from the database the language identified by id.
@@ -175,4 +175,13 @@ func (db *PsqlDB) GetUser(id string) (*User, error) {
 		return nil, err
 	}
 	return user, nil
+}
+
+// CreateUser inserts a new user into the database.
+// Duplicate names are not allowed; attempting to insert one will result
+// in a non-nil error.
+func (db *PsqlDB) CreateUser(name, password string) (string, error) {
+	var userId string
+	err := db.QueryRow(`SELECT create_user($1, $2)`, name, password).Scan(&userId)
+	return userId, err
 }

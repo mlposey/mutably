@@ -19,6 +19,7 @@ type Database interface {
 	GetWords() ([]*Word, error)
 	GetUser(string) (*User, error)
 	GetUsers() ([]*User, error)
+	CreateUser(string, string) (string, error)
 }
 
 // PsqlDB implements the Database interface for PostgreSQL.
