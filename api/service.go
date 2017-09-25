@@ -59,7 +59,7 @@ func (s *Service) registerV1Routes() {
 	v1.Handle("/users", s.auth.Authenticate(s.getUsers_v1)).Methods("GET")
 	v1.HandleFunc("/users", s.createUser_v1).Methods("POST")
 	// TODO: Create a way to restrict access to this.
-	v1.HandleFunc("/users/{id}", s.getUser_v1).Methods("GET")
+	v1.Handle("/users/{id}", s.auth.Authenticate(s.getUser_v1)).Methods("GET")
 }
 
 // Start makes service begin listening for connections on the specified port.
@@ -203,13 +203,24 @@ func (service *Service) createUser_v1(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/v1/users/{id}
 func (service *Service) getUser_v1(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	user, err := service.db.GetUser(vars["id"])
+	claims, err := service.auth.GetClaims(r)
 	if err != nil {
-		service.makeJsonResponse(w, http.StatusNotFound,
-			NewErrorResponse("user not found"))
+		service.makeJsonResponse(w, http.StatusForbidden,
+			NewErrorResponse(err.Error()))
+		return
+	}
+
+	vars := mux.Vars(r)
+	if vars["id"] == claims["id"] || service.db.IsAdmin(claims["id"].(string)) {
+		user, err := service.db.GetUser(vars["id"])
+		if err != nil {
+			service.makeJsonResponse(w, http.StatusNotFound,
+				NewErrorResponse("user not found"))
+		} else {
+			service.makeJsonResponse(w, http.StatusOK, user)
+		}
 	} else {
-		service.makeJsonResponse(w, http.StatusOK, user)
+		service.makeJsonResponse(w, http.StatusForbidden,
+			NewErrorResponse("insufficient permissions"))
 	}
 }
