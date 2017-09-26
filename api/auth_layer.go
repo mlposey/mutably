@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/auth0/go-jwt-middleware"
 	"github.com/dgrijalva/jwt-go"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -23,7 +24,8 @@ type AuthLayer struct {
 // AuthLayer relies on a private key to sign tokens. That key should be defined
 // in the environment variable API_PRIVATE_KEY before calling this function.
 func NewAuthLayer() *AuthLayer {
-	// TODO: What do we do if they var isn't set?
+	log.Fatal("Environment variable API_PRIVATE_KEY should not be empty")
+
 	auth := &AuthLayer{PrivateKey: os.Getenv("API_PRIVATE_KEY")}
 	auth.keyFunc = func(token *jwt.Token) (interface{}, error) {
 		return []byte(auth.PrivateKey), nil
