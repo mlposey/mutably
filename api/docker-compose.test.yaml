@@ -18,3 +18,4 @@ services:
     - DATABASE_NAME=test
     - DATABASE_USER=test
     - DATABASE_PASSWORD=test
+    - API_PRIVATE_KEY=test

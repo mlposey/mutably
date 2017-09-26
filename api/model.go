@@ -5,13 +5,6 @@ import (
 	"time"
 )
 
-// NewErrorResponse creates an error message in the APIs standard format.
-func NewErrorResponse(msg string) map[string]string {
-	return map[string]string{
-		"error": msg,
-	}
-}
-
 // Language describes a natural language that exists in the database.
 type Language struct {
 	// The row id of the language

@@ -43,19 +43,6 @@ func init() {
 	}
 }
 
-func sendRequest(request *http.Request) *httptest.ResponseRecorder {
-	recorder := httptest.NewRecorder()
-	service.Router.ServeHTTP(recorder, request)
-	return recorder
-}
-
-func checkCode(t *testing.T, expected, actual int) {
-	t.Helper()
-	if expected != actual {
-		t.Error("Expected response code ", expected, ", got ", actual)
-	}
-}
-
 // APIv1 should return a 404 response code if a specific language
 // is requested but does not exist.
 func TestGetLanguage_v1_missing(t *testing.T) {
@@ -207,7 +194,7 @@ func TestGetUsers_v1_forbidden(t *testing.T) {
 
 // APIv1 should return a 401 response code if the client sends a request
 // and has no token.
-func TestGetUser_v1_notempty(t *testing.T) {
+func TestGetUser_v1_forbidden(t *testing.T) {
 	clearTable(t, "users")
 	userId, _, _ := addUser(t)
 
@@ -241,6 +228,19 @@ func TestCreateUser_v1_duplicate(t *testing.T) {
 
 // TODO: Test POST /users bad or missing authorization header.
 // TODO: Test POST /users bad username:password format
+
+func sendRequest(request *http.Request) *httptest.ResponseRecorder {
+	recorder := httptest.NewRecorder()
+	service.Router.ServeHTTP(recorder, request)
+	return recorder
+}
+
+func checkCode(t *testing.T, expected, actual int) {
+	t.Helper()
+	if expected != actual {
+		t.Error("Expected response code ", expected, ", got ", actual)
+	}
+}
 
 func clearTable(t *testing.T, table string) {
 	t.Helper()

@@ -13,7 +13,12 @@ import (
 	"time"
 )
 
-// AuthLayer handles API authorization and jwt token management.
+// AuthLayer handles resource authorization.
+//
+// The API uses JSON Web Tokens to grant access to protected resources. Those
+// tokens need to be generated and/or validated before changes to the system
+// can be considered. AuthLayer encapsulates those operations and signs the
+// tokens using a private key. See NewAuthLayer() for setup details.
 type AuthLayer struct {
 	PrivateKey string
 	keyFunc    jwt.Keyfunc
@@ -24,9 +29,12 @@ type AuthLayer struct {
 // AuthLayer relies on a private key to sign tokens. That key should be defined
 // in the environment variable API_PRIVATE_KEY before calling this function.
 func NewAuthLayer() *AuthLayer {
-	log.Fatal("Environment variable API_PRIVATE_KEY should not be empty")
+	privateKey := os.Getenv("API_PRIVATE_KEY")
+	if privateKey == "" {
+		log.Fatal("Environment variable API_PRIVATE_KEY should not be empty")
+	}
 
-	auth := &AuthLayer{PrivateKey: os.Getenv("API_PRIVATE_KEY")}
+	auth := &AuthLayer{PrivateKey: privateKey}
 	auth.keyFunc = func(token *jwt.Token) (interface{}, error) {
 		return []byte(auth.PrivateKey), nil
 	}
@@ -79,14 +87,8 @@ func (auth *AuthLayer) GetClaims(r *http.Request) (jwt.MapClaims, error) {
 	return token.Claims.(jwt.MapClaims), nil
 }
 
-func (auth *AuthLayer) sign(token *jwt.Token) []byte {
-	signedToken, _ := token.SignedString([]byte(auth.PrivateKey))
-	jsonBody := map[string]string{"token": signedToken}
-	resp, _ := json.Marshal(jsonBody)
-	return resp
-}
-
-// Authenticate validates the handler's jwt token and proceeds if checks pass.
+// Authenticate returns a middleware handler that will use jwt to validate the
+// Authorization header of a *http.Request.
 func (auth *AuthLayer) Authenticate(handler http.HandlerFunc) http.Handler {
 	return auth.middleware.Handler(handler)
 }
@@ -114,4 +116,11 @@ func (auth *AuthLayer) GetCredentials(r *http.Request) (string, string, error) {
 	}
 
 	return credentials[0], credentials[1], nil
+}
+
+func (auth *AuthLayer) sign(token *jwt.Token) []byte {
+	signedToken, _ := token.SignedString([]byte(auth.PrivateKey))
+	jsonBody := map[string]string{"token": signedToken}
+	resp, _ := json.Marshal(jsonBody)
+	return resp
 }

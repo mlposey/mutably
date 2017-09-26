@@ -78,6 +78,12 @@ func (service *Service) makeJsonResponse(w http.ResponseWriter, code int,
 	w.Write(marshaledBody)
 }
 
+// makeErrorResponse places in the response body a JSON error message.
+func (service *Service) makeErrorResponse(w http.ResponseWriter, code int,
+	errMsg string) {
+	service.makeJsonResponse(w, code, map[string]string{"error": errMsg})
+}
+
 // getAggregate faciliates 'get all' functionality on a resource.
 // Its arguments are:
 //   w - the writer to output results to
@@ -91,8 +97,7 @@ func (service *Service) respondWithAggregate(w http.ResponseWriter,
 		if err != nil {
 			log.Println(err)
 		}
-		service.makeJsonResponse(w, http.StatusNotFound,
-			NewErrorResponse("no "+resource+" exist"))
+		service.makeErrorResponse(w, http.StatusNotFound, "no "+resource+" exists")
 	} else {
 		service.makeJsonResponse(w, http.StatusOK, objects)
 	}
@@ -109,14 +114,12 @@ func (service *Service) getLanguage_v1(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	languageId, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		service.makeJsonResponse(w, http.StatusBadRequest,
-			NewErrorResponse("invalid language id"))
+		service.makeErrorResponse(w, http.StatusBadRequest, "invalid language id")
 	}
 
 	language, err := service.db.GetLanguage(languageId)
 	if err != nil {
-		service.makeJsonResponse(w, http.StatusNotFound,
-			NewErrorResponse("language not found"))
+		service.makeErrorResponse(w, http.StatusNotFound, "language not found")
 	} else {
 		service.makeJsonResponse(w, http.StatusOK, language)
 	}
@@ -133,14 +136,12 @@ func (service *Service) getWord_v1(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	wordId, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		service.makeJsonResponse(w, http.StatusBadRequest,
-			NewErrorResponse("invalid word id"))
+		service.makeErrorResponse(w, http.StatusBadRequest, "invalid word id")
 	}
 
 	word, err := service.db.GetWord(wordId)
 	if err != nil {
-		service.makeJsonResponse(w, http.StatusNotFound,
-			NewErrorResponse("word not found"))
+		service.makeErrorResponse(w, http.StatusNotFound, "word not found")
 	} else {
 		service.makeJsonResponse(w, http.StatusOK, word)
 	}
@@ -153,8 +154,8 @@ func (service *Service) getUsers_v1(w http.ResponseWriter, r *http.Request) {
 		users, err := service.db.GetUsers()
 		service.respondWithAggregate(w, users, len(users), err, "users")
 	} else {
-		service.makeJsonResponse(w, http.StatusForbidden,
-			NewErrorResponse("resource requires admin privileges"))
+		service.makeErrorResponse(w, http.StatusForbidden,
+			"resource requires admin privileges")
 	}
 }
 
@@ -162,8 +163,7 @@ func (service *Service) getUsers_v1(w http.ResponseWriter, r *http.Request) {
 func (service *Service) createUser_v1(w http.ResponseWriter, r *http.Request) {
 	username, password, err := service.auth.GetCredentials(r)
 	if err != nil {
-		service.makeJsonResponse(w, http.StatusBadRequest,
-			NewErrorResponse(err.Error()))
+		service.makeErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -171,8 +171,7 @@ func (service *Service) createUser_v1(w http.ResponseWriter, r *http.Request) {
 	var userId string
 	userId, err = service.db.CreateUser(username, password)
 	if err != nil {
-		service.makeJsonResponse(w, http.StatusBadRequest,
-			NewErrorResponse(err.Error()))
+		service.makeErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -183,8 +182,7 @@ func (service *Service) createUser_v1(w http.ResponseWriter, r *http.Request) {
 func (service *Service) getUser_v1(w http.ResponseWriter, r *http.Request) {
 	claims, err := service.auth.GetClaims(r)
 	if err != nil {
-		service.makeJsonResponse(w, http.StatusForbidden,
-			NewErrorResponse(err.Error()))
+		service.makeErrorResponse(w, http.StatusForbidden, err.Error())
 		return
 	}
 
@@ -192,13 +190,12 @@ func (service *Service) getUser_v1(w http.ResponseWriter, r *http.Request) {
 	if vars["id"] == claims["id"] || service.db.IsAdmin(claims["id"].(string)) {
 		user, err := service.db.GetUser(vars["id"])
 		if err != nil {
-			service.makeJsonResponse(w, http.StatusNotFound,
-				NewErrorResponse("user not found"))
+			service.makeErrorResponse(w, http.StatusNotFound, "user not found")
 		} else {
 			service.makeJsonResponse(w, http.StatusOK, user)
 		}
 	} else {
-		service.makeJsonResponse(w, http.StatusForbidden,
-			NewErrorResponse("insufficient permissions"))
+		service.makeErrorResponse(w, http.StatusForbidden,
+			"insufficient permissions")
 	}
 }
