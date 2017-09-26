@@ -16,6 +16,15 @@ tags:
     description: User data
 schemes:
   - http
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    name: Authorization
+    in: header
+  Basic:
+    type: apiKey
+    name: Authorization
+    in: header
 paths:
   /languages:
     get:
@@ -129,9 +138,14 @@ paths:
       tags:
         - users
       summary: Retrieves all users
+      description: >-
+        This resource requires a JWT in the Authorization header. That token
+        must belong to a user with the administrator role.
       produces:
         - application/json
       parameters: []
+      security:
+        - Bearer: []
       responses:
         '200':
           description: success
@@ -139,6 +153,10 @@ paths:
             type: array
             items:
               $ref: '#/definitions/User'
+        '401':
+          description: not authorized to access resource
+          schema:
+            $ref: '#/definitions/ErrorResponse'
         '404':
           description: no users exist
           schema:
@@ -147,22 +165,19 @@ paths:
       tags:
         - users
       summary: Creates a new user
+      description: >-
+        The client should provide a username and password as a Basic
+        Authorization header. They should be join by a colon like so -
+        aUser:pwd123
       consumes:
         - application/json
       produces:
         - application/json
-      parameters:
-        - name: user
-          in: body
-          required: true
-          description: >-
-            A definition of a new user. Only the handle property is used here.
-            Others are generated in back-end code.
-          schema:
-            $ref: '#/definitions/User'
+      security:
+        - Basic: []
       responses:
-        '405':
-          description: invalid user definition
+        '400':
+          description: failed to create user
           schema:
             $ref: '#/definitions/ErrorResponse'
   '/users/{id}':
@@ -170,6 +185,9 @@ paths:
       tags:
         - users
       summary: Retrieves a specific user
+      description: >-
+        This resource requires a JWT in the Authorization header. The token must
+        belong to either the requested user or one with the administrator role.
       produces:
         - application/json
       parameters:
@@ -179,11 +197,17 @@ paths:
           required: true
           type: integer
           format: int64
+      security:
+        - Bearer: []
       responses:
         '200':
           description: success
           schema:
             $ref: '#/definitions/User'
+        '401':
+          description: not authorized to access resource
+          schema:
+            $ref: '#/definitions/ErrorResponse'
         '404':
           description: user not found
           schema:
@@ -191,17 +215,15 @@ paths:
 definitions:
   User:
     type: object
-    required:
-      - name
     properties:
       id:
         type: string
       name:
         type: string
-      lang-from:
+      role:
         type: integer
         format: int64
-      lang-to:
+      target-language:
         type: integer
         format: int64
       creation-tz:
