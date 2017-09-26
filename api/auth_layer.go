@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"github.com/auth0/go-jwt-middleware"
@@ -86,4 +87,29 @@ func (auth *AuthLayer) sign(token *jwt.Token) []byte {
 // Authenticate validates the handler's jwt token and proceeds if checks pass.
 func (auth *AuthLayer) Authenticate(handler http.HandlerFunc) http.Handler {
 	return auth.middleware.Handler(handler)
+}
+
+// GetCredentials reads a set of username:password credentials from a base64
+// encoded basic authorization header. It returns the username, password, and
+// nil error if the credentials existed and matched the colon format.
+func (auth *AuthLayer) GetCredentials(r *http.Request) (string, string, error) {
+	// Authorization: Basic base64gobblygoop
+	encodedCreds := strings.Split(r.Header.Get("Authorization"), " ")
+	if len(encodedCreds) != 2 {
+		return "", "", errors.New("username:password required but missing")
+	}
+
+	// base64gobblygoop -> username:password
+	decoded, err := base64.StdEncoding.DecodeString(encodedCreds[1])
+	if err != nil {
+		return "", "", err
+	}
+
+	// 'username:password' -> {'username', 'password'}
+	credentials := strings.Split(string(decoded), ":")
+	if len(credentials) != 2 {
+		return "", "", errors.New("bad authorization string")
+	}
+
+	return credentials[0], credentials[1], nil
 }

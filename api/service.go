@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"github.com/gorilla/mux"
@@ -9,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 // Service controls communication between outside applications (that send HTTP
@@ -162,35 +160,16 @@ func (service *Service) getUsers_v1(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/v1/users
 func (service *Service) createUser_v1(w http.ResponseWriter, r *http.Request) {
-	// Get basic authorization header as text.
-	// Authorization: Basic gobblygoop
-	encodedCreds := strings.Split(r.Header.Get("Authorization"), " ")
-	if len(encodedCreds) != 2 {
-		service.makeJsonResponse(w, http.StatusBadRequest,
-			NewErrorResponse("username/password required but missing"))
-		return
-	}
-
-	// Decode username:password string.
-	// base64gobblygoop -> username:password
-	decoded, err := base64.StdEncoding.DecodeString(encodedCreds[1])
+	username, password, err := service.auth.GetCredentials(r)
 	if err != nil {
 		service.makeJsonResponse(w, http.StatusBadRequest,
 			NewErrorResponse(err.Error()))
 		return
 	}
 
-	// Split into separate strings.
-	credentials := strings.Split(string(decoded), ":")
-	if len(credentials) != 2 {
-		service.makeJsonResponse(w, http.StatusBadRequest,
-			NewErrorResponse("bad authorization string"))
-		return
-	}
-
 	// Create resource.
 	var userId string
-	userId, err = service.db.CreateUser(credentials[0], credentials[1])
+	userId, err = service.db.CreateUser(username, password)
 	if err != nil {
 		service.makeJsonResponse(w, http.StatusBadRequest,
 			NewErrorResponse(err.Error()))
