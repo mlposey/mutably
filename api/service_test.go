@@ -194,77 +194,33 @@ func TestGetWord_v1_notempty(t *testing.T) {
 	}
 }
 
-// APIv1 should return a 404 response code if the database contains no users.
-func TestGetUsers_v1_empty(t *testing.T) {
+// APIv1 should return a 401 response code if the client sends a request
+// and has no token.
+func TestGetUsers_v1_forbidden(t *testing.T) {
 	clearTable(t, "users")
+	addUser(t)
 
 	req, _ := http.NewRequest("GET", "/api/v1/users", nil)
 	resp := sendRequest(req)
-	checkCode(t, http.StatusNotFound, resp.Code)
+	checkCode(t, http.StatusUnauthorized, resp.Code)
 }
 
-// APIv1 should return a 200 response code along with an array of all users
-// if any exist.
-func TestGetUsers_v1_notempty(t *testing.T) {
-	clearTable(t, "users")
-	userId, _ := addUser(t)
-
-	req, _ := http.NewRequest("GET", "/api/v1/users", nil)
-	resp := sendRequest(req)
-	checkCode(t, http.StatusOK, resp.Code)
-
-	var users []main.User
-	json.Unmarshal(resp.Body.Bytes(), &users)
-
-	if len(users) == 0 {
-		t.Fatalf("Failed to retrieve users")
-	}
-
-	if users[0].Id != userId {
-		t.Errorf("Expected user id %s, got %s", userId, users[0].Id)
-	}
-}
-
-// APIv1 should return a 404 response code if a requested user does not exist.
-func TestGetUser_v1_empty(t *testing.T) {
-	clearTable(t, "users")
-
-	req, _ := http.NewRequest("GET", "/api/v1/users/abd", nil)
-	resp := sendRequest(req)
-	checkCode(t, http.StatusNotFound, resp.Code)
-}
-
-// APIv1 should return a 200 response code along with the requested user if
-// they exist.
+// APIv1 should return a 401 response code if the client sends a request
+// and has no token.
 func TestGetUser_v1_notempty(t *testing.T) {
 	clearTable(t, "users")
-	userId, _ := addUser(t)
-	addUser(t)
-	addUser(t)
+	userId, _, _ := addUser(t)
 
 	req, _ := http.NewRequest("GET", "/api/v1/users/"+userId, nil)
 	resp := sendRequest(req)
-	checkCode(t, http.StatusOK, resp.Code)
-
-	var user main.User
-	json.Unmarshal(resp.Body.Bytes(), &user)
-
-	if user.Id != userId {
-		t.Errorf("Expected user id %s, got %s", userId, user.Id)
-	}
+	checkCode(t, http.StatusUnauthorized, resp.Code)
 }
 
 // APIv1 should return a status created code if asked to create a user with
 // name that is not in the database.
 func TestCreateUser_v1_unique(t *testing.T) {
 	clearTable(t, "users")
-
-	req, _ := http.NewRequest("POST", "/api/v1/users", nil)
-	cred := base64.StdEncoding.EncodeToString([]byte("user:pass"))
-	req.Header.Set("Authorization", "Basic "+cred)
-
-	resp := sendRequest(req)
-	checkCode(t, http.StatusCreated, resp.Code)
+	requestAccount(t, "user", "pass")
 }
 
 // APIv1 should return a bad request code if asked to create a user with a
@@ -294,20 +250,43 @@ func clearTable(t *testing.T, table string) {
 	}
 }
 
-func addUser(t *testing.T) (string, string) {
+// requestAccount supplies credentials to the HTTP account creation resource.
+// Returns the user's jwt token
+func requestAccount(t *testing.T, user, pass string) string {
 	t.Helper()
 
-	userPassword := uuid.NewV4().String()
+	req, err := http.NewRequest("POST", "/api/v1/users", nil)
+	if err != nil {
+		t.Error(err)
+	}
+	cred := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
+	req.Header.Set("Authorization", "Basic "+cred)
+	resp := sendRequest(req)
+	checkCode(t, http.StatusCreated, resp.Code)
+
+	var respBody map[string]string
+	json.Unmarshal(resp.Body.Bytes(), &respBody)
+
+	return respBody["token"]
+}
+
+// addUser inserts a new user into the database with a random username and
+// password. The user's id, username, and password are returned.
+func addUser(t *testing.T) (string, string, string) {
+	t.Helper()
+
+	username := uuid.NewV4().String()
+	password := uuid.NewV4().String()
 	var userId string
 
 	err := db.QueryRow(`
 		SELECT create_user($1, $2)`,
-		uuid.NewV4().String(), userPassword,
+		username, password,
 	).Scan(&userId)
 	if err != nil {
 		t.Error(err)
 	}
-	return userId, userPassword
+	return userId, username, password
 }
 
 func addWord(t *testing.T) (int, int) {
