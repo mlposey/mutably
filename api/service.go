@@ -52,7 +52,7 @@ func (s *Service) registerV1Routes() {
 
 	v1.HandleFunc("/words", s.getWords_v1).Methods("GET")
 	v1.HandleFunc("/words/{id:[0-9]+}", s.getWord_v1).Methods("GET")
-	// TODO: GET /words/{id:[0-9]+}/inflections
+	v1.HandleFunc("/words/{word}/inflections", s.getInflections_v1).Methods("GET")
 
 	v1.Handle("/users", s.auth.Authenticate(s.getUsers_v1)).Methods("GET")
 	v1.HandleFunc("/users", s.createUser_v1).Methods("POST")
@@ -145,6 +145,17 @@ func (service *Service) getWord_v1(w http.ResponseWriter, r *http.Request) {
 	} else {
 		service.makeJsonResponse(w, http.StatusOK, word)
 	}
+}
+
+// GET /api/v1/words/{word}/inflections
+func (service *Service) getInflections_v1(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	table, err := service.db.GetConjugationTable(vars["word"])
+	if err != nil {
+		service.makeErrorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+	service.makeJsonResponse(w, http.StatusOK, table)
 }
 
 // GET /api/v1/users

@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -194,4 +195,59 @@ func (db *PsqlDB) IsAdmin(userId string) bool {
 	}
 
 	return role == "admin"
+}
+
+// Conjugation table stores the present and past tense forms of an infintive.
+type ConjugationTable struct {
+	Id         int
+	Infinitive string
+	Present    *TenseInflection
+	Past       *TenseInflection
+}
+
+// TenseInflection stores the forms of a verb in a certain tense.
+type TenseInflection struct {
+	Id     int
+	First  string
+	Second string
+	Third  string
+	Plural string
+}
+
+// GetConjugationTable retrieves a tense inflection for word.
+func (db *PsqlDB) GetConjugationTable(word string) (*ConjugationTable, error) {
+	// This won't work when another language is added.
+	tense := &TenseInflection{}
+	err := db.QueryRow(`
+			SELECT
+			    tense_inflections.id
+			  , wfirst.word  as first
+			  , wsecond.word as second
+			  , wthird.word  as third
+			  , wplural.word as plural
+			FROM tense_inflections
+			JOIN words as wfirst  on wfirst.id    = first
+			JOIN words as wsecond on wsecond.id   = second
+			JOIN words as wthird  on wthird.id    = third
+			JOIN words as wplural on wplural.id   = plural
+			JOIN words as request on request.word = $1
+			WHERE
+			    tense_inflections.first  = request.id
+			 OR tense_inflections.second = request.id
+			 OR tense_inflections.third  = request.id
+			 OR tense_inflections.plural = request.id`,
+		word,
+	).Scan(&tense.Id, &tense.First, &tense.Second, &tense.Third,
+		&tense.Plural)
+	if err == sql.ErrNoRows {
+		return nil, errors.New("could not find inflections for " + word)
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &ConjugationTable{
+		Id:         -1,
+		Infinitive: "",
+		Present:    tense,
+	}, nil
 }
