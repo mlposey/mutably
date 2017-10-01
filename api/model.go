@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 	"time"
 )
 
@@ -23,7 +22,7 @@ func (db *PsqlDB) GetLanguage(id int) (*Language, error) {
 	language := &Language{Id: id}
 
 	err := db.QueryRow(`
-		SELECT language, tag FROM languages
+		SELECT name, tag FROM languages
 		WHERE id = $1`,
 		language.Id,
 	).Scan(&language.Name, &language.Tag)
@@ -71,10 +70,11 @@ type Word struct {
 // GetWords returns a slice of all words in the database.
 func (db *PsqlDB) GetWords() ([]*Word, error) {
 	rows, err := db.Query(`
-		SELECT words.id, words.word, languages.id
-		FROM verbs
-		JOIN words     on verbs.word_id = words.id
-		JOIN languages on verbs.lang_id = languages.id
+		SELECT DISTINCT words.id, words.word, lang_id
+		FROM verb_forms
+		JOIN words
+		  on verb_forms.word_id = words.id
+		  or verb_forms.inf_id  = words.id
 	`)
 	if err != nil {
 		return nil, err
@@ -95,15 +95,16 @@ func (db *PsqlDB) GetWords() ([]*Word, error) {
 }
 
 // GetWord returns from the database a word identified by id.
+// TODO: This won't work for multiple languages.
 func (db *PsqlDB) GetWord(id int) (*Word, error) {
-	word := &Word{}
+	word := &Word{Id: id}
 	err := db.QueryRow(`
-		SELECT words.id, words.word, languages.id
-		FROM verbs
-		JOIN words     on verbs.word_id = $1
-		JOIN languages on verbs.lang_id = languages.id`,
+		SELECT words.word, lang_id
+		FROM verb_forms
+		JOIN words on words.id = verb_forms.word_id
+		WHERE word_id = $1`,
 		id,
-	).Scan(&word.Id, &word.Text, &word.LanguageId)
+	).Scan(&word.Text, &word.LanguageId)
 
 	if err != nil {
 		return nil, err
@@ -199,7 +200,6 @@ func (db *PsqlDB) IsAdmin(userId string) bool {
 
 // Conjugation table stores the present and past tense forms of an infintive.
 type ConjugationTable struct {
-	Id         int
 	Infinitive string
 	Present    *TenseInflection
 	Past       *TenseInflection
@@ -207,47 +207,90 @@ type ConjugationTable struct {
 
 // TenseInflection stores the forms of a verb in a certain tense.
 type TenseInflection struct {
-	Id     int
-	First  string
-	Second string
-	Third  string
-	Plural string
+	First  []string
+	Second []string
+	Third  []string
+	Plural []string
 }
+
+// Person defines the grammatical person of a finite verb form.
+// TODO: anvil has a similar definition. Try to share them.
+type Person int
+
+const (
+	First  Person = 1 << 1
+	Second Person = 1 << 2
+	Third  Person = 1 << 3
+)
 
 // GetConjugationTable retrieves a tense inflection for word.
 func (db *PsqlDB) GetConjugationTable(word string) (*ConjugationTable, error) {
-	// This won't work when another language is added.
-	tense := &TenseInflection{}
-	err := db.QueryRow(`
-			SELECT
-			    tense_inflections.id
-			  , wfirst.word  as first
-			  , wsecond.word as second
-			  , wthird.word  as third
-			  , wplural.word as plural
-			FROM tense_inflections
-			JOIN words as wfirst  on wfirst.id    = first
-			JOIN words as wsecond on wsecond.id   = second
-			JOIN words as wthird  on wthird.id    = third
-			JOIN words as wplural on wplural.id   = plural
-			JOIN words as request on request.word = $1
-			WHERE
-			    tense_inflections.first  = request.id
-			 OR tense_inflections.second = request.id
-			 OR tense_inflections.third  = request.id
-			 OR tense_inflections.plural = request.id`,
-		word,
-	).Scan(&tense.Id, &tense.First, &tense.Second, &tense.Third,
-		&tense.Plural)
-	if err == sql.ErrNoRows {
-		return nil, errors.New("could not find inflections for " + word)
-	} else if err != nil {
+	inf, infId, err := db.GetInfinitive(word)
+	if err != nil {
 		return nil, err
 	}
 
+	// We won't read person into a nullable type, so it is important that the
+	// value is read last. If, for example, person was the first column listed
+	// and it was null, the other columns would be ignored and Go would give
+	// them zero values.
+	rows, err := db.Query(`
+		SELECT words.word, num, tense_id, person
+		FROM verb_forms
+		JOIN words on words.id = verb_forms.word_id
+		WHERE inf_id = $1`,
+		infId,
+	)
+	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	tenses := []*TenseInflection{&TenseInflection{}, &TenseInflection{}}
+	for rows.Next() {
+		var form string
+		var person Person
+		var num, tense int
+
+		rows.Scan(&form, &num, &tense, &person)
+		tense--
+		if num == 2 {
+			// plural won't have a person
+			tenses[tense].Plural = append(tenses[tense].Plural, form)
+		} else {
+			if person&First != 0 {
+				tenses[tense].First = append(tenses[tense].First, form)
+			}
+			if person&Second != 0 {
+				tenses[tense].Second = append(tenses[tense].Second, form)
+			}
+			if person&Third != 0 {
+				tenses[tense].Third = append(tenses[tense].Third, form)
+			}
+		}
+	}
+
 	return &ConjugationTable{
-		Id:         -1,
-		Infinitive: "",
-		Present:    tense,
+		Infinitive: inf,
+		Present:    tenses[0],
+		Past:       tenses[1],
 	}, nil
+}
+
+// GetInfinitive retrieves the word and id of the verb form's infinitive.
+func (db *PsqlDB) GetInfinitive(verbForm string) (string, int, error) {
+	var infinitive string
+	var id int
+	err := db.QueryRow(`
+		SELECT words.word, inf_id
+		FROM verb_forms
+		JOIN words on words.id = verb_forms.inf_id
+		WHERE word_id = (SELECT id FROM words WHERE word = $1)`,
+		verbForm,
+	).Scan(&infinitive, &id)
+
+	if err != nil {
+		return "", 0, err
+	}
+	return infinitive, id, nil
 }
