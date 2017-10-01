@@ -19,23 +19,33 @@ func (language *Language) String() string {
 	return strings.ToLower(language.text)
 }
 
-// Verb defines a word that is a verb in a specific language.
-type Verb struct {
-	Id         int
-	WordId     int
-	LanguageId int
-	Text       string
-	TableId    int
-	Template   string
-}
+type GrammaticalTense int
 
-// NewVerb creates a new languageless Verb instance ready to pass to a
-// Conjugator.
-func NewVerb(wordId, languageId int, text, template string) *Verb {
-	return &Verb{
-		WordId:     wordId,
-		LanguageId: languageId,
-		Text:       text,
-		Template:   template,
-	}
+const (
+	Present GrammaticalTense = iota
+	Past
+)
+
+// GrammaticalNumber is a property of finite verbs.
+type GrammaticalNumber int
+
+const (
+	Singular GrammaticalNumber = 1
+	Plural   GrammaticalNumber = 2
+)
+
+// VerbForm defines a language-specific form of an infinitive verb.
+type VerbForm struct {
+	LanguageId   int
+	InfinitiveId int
+
+	Word   string
+	Tense  GrammaticalTense
+	Number GrammaticalNumber
+
+	// First:  1 << 1
+	// Second: 1 << 2
+	// Third:  1 << 3
+	// The configurations can be combined using the '|' operator.
+	Person int
 }

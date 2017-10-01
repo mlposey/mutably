@@ -89,32 +89,15 @@ func (wkr worker) process(page parser.Page) {
 				continue
 			}
 
-			verbs := wkr.getVerbs(conjugator, page.Title)
-			for _, verb := range verbs {
-				if err := conjugator.Conjugate(verb); err != nil {
+			templates := wkr.getTemplates()
+			for _, template := range templates {
+				err := conjugator.Conjugate(page.Title, template)
+				if err != nil {
 					log.Println(err)
 				}
 			}
 		}
 	}
-}
-
-// getVerbs returns a conjugator and collection of verbs that it can
-// process. The verbs come from the current language section.
-// the returned conjugator will be nil if the language is not supported.
-func (wkr worker) getVerbs(conjugator inflection.Conjugator,
-	pageTitle string) []*model.Verb {
-
-	wordId := wkr.database.InsertWord(pageTitle)
-
-	// All verbs in this section that conjugator can conjugate
-	var verbs []*model.Verb
-
-	for _, template := range wkr.getTemplates() {
-		verbs = append(verbs, model.NewVerb(wordId, conjugator.GetLanguage().Id,
-			pageTitle, template))
-	}
-	return verbs
 }
 
 // getTemplates creates a VerbTemplate for each verb template
@@ -128,7 +111,7 @@ func (wkr worker) getVerbs(conjugator inflection.Conjugator,
 // {{en-verb|lies|lying|lied}}
 // {{inflection of|lier||3|s|pres|subj|lang=fr}}
 func (wkr worker) getTemplates() (templates []string) {
-	verbSection := wkr.getVerbSection() // TODO: only take the first section
+	verbSection := wkr.getVerbSection()
 	if verbSection == "" {
 		return templates
 	}

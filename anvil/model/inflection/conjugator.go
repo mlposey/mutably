@@ -12,5 +12,5 @@ type Conjugator interface {
 	// SetDatabase should tell the Conjugator where to store results.
 	SetDatabase(model.Database) error
 	// Conjugate should build part (or all of) a conjugation table.
-	Conjugate(*model.Verb) error
+	Conjugate(verb, template string) error
 }

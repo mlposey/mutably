@@ -2,6 +2,7 @@ package verb
 
 import (
 	"errors"
+	"log"
 	"mutably/anvil/model"
 	"mutably/anvil/model/inflection"
 	"mutably/anvil/parser"
@@ -60,7 +61,11 @@ func (vparser *VerbParser) storeLanguages(db model.Database,
 	conjugators map[string]inflection.Conjugator) {
 	for _, conjugator := range conjugators {
 		conjugator.SetDatabase(db)
-		db.InsertLanguage(conjugator.GetLanguage())
+		err := db.InsertLanguage(conjugator.GetLanguage())
+		if err != nil {
+			// TODO: Remove the conjugator from the list if it cannot be added.
+			log.Println(err)
+		}
 	}
 }
 

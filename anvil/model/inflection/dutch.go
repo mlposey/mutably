@@ -22,8 +22,8 @@ type Dutch struct {
 	tense  *regexp.Regexp
 	infRef *regexp.Regexp
 
-	// A cache of infinitive verbs and their inflection table ids
-	tableCache cache
+	// A cache of word ids for infinitive verbs
+	idCache cache
 }
 
 // NewDutch creates and returns a new Dutch instance.
@@ -35,8 +35,8 @@ func NewDutch() *Dutch {
 		number:   regexp.MustCompile(`n=(.{2})`),
 		tense:    regexp.MustCompile(`t=(.{4})`),
 		// {{nl-verb form of|...|the_infinitive_reference}}
-		infRef:     regexp.MustCompile(`\|([^\|]+)}}`),
-		tableCache: cache{m: make(map[string]int)},
+		infRef:  regexp.MustCompile(`\|([^\|]+)}}`),
+		idCache: cache{m: make(map[string]int)},
 	}
 }
 
@@ -55,140 +55,165 @@ func (dutch *Dutch) SetDatabase(db model.Database) error {
 }
 
 // Conjugate uses a verb's template to construct parts of the conjugation
-// table that it belongs to.
-func (dutch *Dutch) Conjugate(verb *model.Verb) error {
+// table that it belongs to. Finite verbs should exist as a word in the
+// database before being passed to this method.
+func (dutch *Dutch) Conjugate(verb, template string) error {
 	// This header isn't useful for Dutch, but in the future it may be for
 	// other languages. Ignore it here rather than in the method that called
 	// this one.
-	if verb.Template == "{{nl-verb-form}}" {
+	if template == "{{nl-verb-form}}" {
 		return nil
 	}
 
-	if verb.Template == "{{nl-verb}}" {
-		return dutch.handleInfinitive(verb)
+	if template == "{{nl-verb}}" {
+		dutch.handleInfinitive(verb)
+		// The first tense plural should just be the infinitive.
+		return dutch.handleFinite(verb, "{{nl-verb form of|n=pl|t=pres|m=ind|"+
+			verb+"}}")
 	} else {
-		return dutch.handleFinite(verb)
+		return dutch.handleFinite(verb, template)
 	}
 }
 
 // handleInfinitive manages an infinitive verb.
-func (dutch *Dutch) handleInfinitive(verb *model.Verb) error {
-	verb.TableId = dutch.database.InsertInfinitive(verb.Text,
-		dutch.GetLanguage().Id)
+func (dutch *Dutch) handleInfinitive(verb string) {
+	infinitiveId := dutch.database.InsertWord(verb)
 
-	dutch.tableCache.Lock()
-	dutch.tableCache.m[verb.Text] = verb.TableId
-	dutch.tableCache.Unlock()
-
-	// Note: Past tense plurals are verb forms and won't get caught here.
-	err := dutch.database.InsertPlural(verb.Text, "present", verb.TableId)
-	return err
+	dutch.idCache.Lock()
+	dutch.idCache.m[verb] = infinitiveId
+	dutch.idCache.Unlock()
 }
 
 // handleFinite manages a finite verb form.
-func (dutch *Dutch) handleFinite(verb *model.Verb) error {
-	infinitive := dutch.infRef.FindStringSubmatch(verb.Template)
+func (dutch *Dutch) handleFinite(verb, template string) error {
+	dutch.database.InsertWord(verb)
+
+	infinitive := dutch.infRef.FindStringSubmatch(template)
 	if infinitive == nil {
-		log.Println(*verb)
-		return errors.New("Invalid template for verb " + verb.Text)
+		return errors.New("Invalid template for verb " + verb)
 	}
 
-	dutch.tableCache.RLock()
-	if tableId, ok := dutch.tableCache.m[infinitive[1]]; ok {
-		dutch.tableCache.RUnlock()
-		verb.TableId = tableId
+	// Finite verbs will refer to the verb they come from.
+	var infinitiveId int
+
+	dutch.idCache.RLock()
+	if id, ok := dutch.idCache.m[infinitive[1]]; ok {
+		dutch.idCache.RUnlock()
+		infinitiveId = id
 	} else {
-		dutch.tableCache.RUnlock()
-		verb.TableId = dutch.database.InsertInfinitive(infinitive[1],
-			verb.LanguageId)
-
-		dutch.tableCache.Lock()
-		dutch.tableCache.m[infinitive[1]] = verb.TableId
-		dutch.tableCache.Unlock()
+		dutch.idCache.RUnlock()
+		dutch.handleInfinitive(infinitive[1])
+		dutch.idCache.RLock()
+		infinitiveId = dutch.idCache.m[infinitive[1]]
+		dutch.idCache.RUnlock()
 	}
 
-	dutch.addToTable(verb)
-	return nil
+	verbForm, e := dutch.assemble(verb, template, infinitiveId)
+	if e != nil {
+		return e
+	}
+	//log.Printf("%+v\n", *verbForm)
+	return dutch.database.InsertVerbForm(verbForm)
 }
 
-// addToTable adds a verb to the conjugation table of its infinitive form.
-// It is important the verb be finite.
-func (dutch *Dutch) addToTable(verb *model.Verb) {
-	moods := dutch.mood.FindStringSubmatch(verb.Template)
+// assemble uses a template to assemble the parts of a VerbForm.
+func (dutch *Dutch) assemble(verb, template string,
+	infinitiveId int) (*model.VerbForm, error) {
+	moods := dutch.mood.FindStringSubmatch(template)
 	if moods != nil && moods[1] != "ind" {
 		// Some finite verb templates don't display a mood, and all infinitves
 		// don't. That means it's important that only finite verbs enter
 		// this method.
-		return
+		return nil, errors.New("Expected ind mood")
 	}
 
-	tense := dutch.getTense(verb.Template)
-	if tense == "" {
-		return
+	tense, err := dutch.getTense(template)
+	if err != nil {
+		return nil, err
 	}
 
-	numbers := dutch.number.FindStringSubmatch(verb.Template)
-	if numbers == nil {
-		return
+	numberMatch := dutch.number.FindStringSubmatch(template)
+	if numberMatch == nil {
+		return nil, errors.New("Template is missing grammatical number")
 	}
-	if numbers[1] == "pl" {
-		err := dutch.database.InsertAsTense(verb, tense, "", true)
-		if err != nil {
-			log.Println(err)
-		}
+
+	number, e := dutch.getNumber(template)
+	if e != nil {
+		return nil, e
+	}
+
+	var person int
+	if number == model.Singular {
+		person = dutch.getPerson(template)
+	}
+
+	return &model.VerbForm{
+		LanguageId:   dutch.GetLanguage().Id,
+		InfinitiveId: infinitiveId,
+		Word:         verb,
+		Tense:        tense,
+		Number:       number,
+		Person:       person,
+	}, nil
+}
+
+// getNumber extracts the grammatical number from a template.
+func (dutch *Dutch) getNumber(template string) (model.GrammaticalNumber, error) {
+	numberMatch := dutch.number.FindStringSubmatch(template)
+	if numberMatch == nil {
+		return 0, errors.New("Template is missing grammatical number")
+	}
+
+	if numberMatch[1] == "pl" {
+		return model.Plural, nil
 	} else {
-		for _, person := range dutch.getPersons(verb.Template) {
-			err := dutch.database.InsertAsTense(verb, tense, person, false)
-			if err != nil {
-				log.Println(err)
-			}
-		}
+		return model.Singular, nil
 	}
 }
 
 // getTense extracts the grammatical tense from a template.
-// Returns "" instead of the tense if it is missing.
-func (dutch *Dutch) getTense(template string) string {
+func (dutch *Dutch) getTense(template string) (model.GrammaticalTense, error) {
 	tenses := dutch.tense.FindStringSubmatch(template)
 	if tenses == nil {
-		return ""
+		return 0, errors.New("Missing tense for verb form")
 	}
 
 	switch tenses[1] {
 	case "pres":
-		return "present"
+		return model.Present, nil
 	case "past":
-		return "past"
+		return model.Past, nil
 	default:
-		return ""
+		return 0, errors.New("Invalid tense for verb form")
 	}
 }
 
 // getPersons extracts the grammatical person defininitions from a template.
-func (dutch *Dutch) getPersons(template string) []string {
-	// Grammatical persons (i.e., first, second, third)
-	var persons []string
-
+func (dutch *Dutch) getPerson(template string) int {
+	var person int
 	match := dutch.person.FindStringSubmatch(template)
-	if match == nil {
-		// No explicit person means the verb exists for all three.
-		persons = []string{"first", "second", "third"}
-	} else {
+
+	if match != nil {
 		for _, p := range match[1] {
 			switch p {
 			case '1':
-				persons = append(persons, "first")
+				person |= 1 << 1
 			case '2':
-				persons = append(persons, "second")
+				person |= 1 << 2
 			case '3':
-				persons = append(persons, "third")
+				person |= 1 << 3
+			default:
+				log.Println("Invalid person in template", template)
 			}
 		}
+	} else {
+		// The absence of a person definition means it applies to all persons.
+		person = (1 << 1) | (1 << 2) | (1 << 3)
 	}
-	return persons
+	return person
 }
 
-// Used by Dutch for caching table ids
+// Cache for infinitive word ids
 type cache struct {
 	m map[string]int
 	sync.RWMutex
