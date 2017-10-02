@@ -79,6 +79,39 @@ func clearDatabase(t *testing.T) {
 	clearTable(t, "users")
 }
 
+// createCompleteVerb inserts the complete structure of a made up verb.
+// That structure includes the infinitive and number/singularity of present
+// and past tenses.
+// returns (infinitive, id of infinitive)
+func createCompleteVerb(t *testing.T) (string, int) {
+	t.Helper()
+	var langId int
+	db.QueryRow(`
+		INSERT INTO languages (name)
+		VALUES ('dutch') RETURNING id`,
+	).Scan(&langId)
+
+	var infId int
+	db.QueryRow(`INSERT INTO words (word) VALUES ('krijgen') RETURNING id`).Scan(&infId)
+
+	db.Exec(`
+		INSERT INTO words (word) VALUES
+		('krijg'), ('krijgt'), ('kreeg'), ('kreegt'), ('kregen')
+	`)
+	db.Exec(`
+		INSERT INTO verb_forms (lang_id, word_id, inf_id, tense_id, person, num)
+		VALUES
+		($1, (SELECT id FROM words WHERE word = 'krijg'), $2, 1, 2, 1),
+		($1, (SELECT id FROM words WHERE word = 'krijgt'), $2, 1, 12, 1),
+		($1, $2, $2, 1, NULL, 2),
+		($1, (SELECT id FROM words WHERE word = 'kreeg'), $2, 2, 14, 1),
+		($1, (SELECT id FROM words WHERE word = 'kreegt'), $2, 2, 4, 1),
+		($1, (SELECT id FROM words WHERE word = 'kregen'), $2, 2, NULL, 2)`,
+		langId, infId,
+	)
+	return "krijgen", infId
+}
+
 // createVerbForm inserts a value into the test database's verb_forms table.
 // returns (language id, word id, verb form id)
 func createVerbForm(t *testing.T) (int, int, int) {

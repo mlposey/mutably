@@ -3,7 +3,9 @@ package main_test
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	_ "github.com/lib/pq"
+	"github.com/satori/go.uuid"
 	"mutably/api"
 	"net/http"
 	"net/http/httptest"
@@ -196,3 +198,55 @@ func TestCreateUser_v1_duplicate(t *testing.T) {
 
 // TODO: Test POST /users bad or missing authorization header.
 // TODO: Test POST /users bad username:password format
+
+// APIv1 should a not found request code if asked to retrieve the inflection
+// table of a verb that does not exist.
+func TestGetInflections_v1_missing(t *testing.T) {
+	clearDatabase(t)
+
+	word := uuid.NewV4().String()
+	req, _ := http.NewRequest("GET", "/api/v1/words/"+word+"/inflections", nil)
+	resp := sendRequest(req)
+	checkCode(t, http.StatusNotFound, resp.Code)
+}
+
+// APIv1 should return the inflection table of verbs that exist.
+// The table is expected to look like the following:
+// {
+//	"infinitive": string,
+//  "present": {"first":[string...], "second":[string...], "third":[string...], "plural":[string...]},
+//  "past": {"first":[string...], "second":[string...], "third":[string...], "plural":[string...]}
+// }
+func TestGetInflections_v1_exists(t *testing.T) {
+	clearDatabase(t)
+	// We'll request a verb that has forms in each grammatical category. Thus,
+	// the resulting JSON response should have entries in each position.
+	infinitive, _ := createCompleteVerb(t)
+
+	req, _ := http.NewRequest("GET", "/api/v1/words/"+infinitive+"/inflections", nil)
+	resp := sendRequest(req)
+	checkCode(t, http.StatusOK, resp.Code)
+
+	var table main.ConjugationTable
+	json.Unmarshal(resp.Body.Bytes(), &table)
+
+	missingDataError := errors.New("Table is missing category information")
+	if table.Infinitive == "" || table.Present == nil || table.Past == nil {
+		t.Error(missingDataError)
+	}
+
+	tenses := []*main.TenseInflection{table.Present, table.Past}
+	for _, tense := range tenses {
+		if len(tense.First) == 0 ||
+			len(tense.Second) == 0 ||
+			len(tense.Third) == 0 ||
+			len(tense.Plural) == 0 {
+			t.Error(missingDataError)
+		}
+	}
+}
+
+// TODO: Test GET /words/{word}/inflections using all forms of a verb.
+//       Right now the tests only check the infinitive, but we should ensure
+//       that API calls that use the various forms also retrieve the same
+//       table.
