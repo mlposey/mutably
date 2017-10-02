@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 )
 
@@ -226,7 +227,9 @@ const (
 // GetConjugationTable retrieves a tense inflection for word.
 func (db *PsqlDB) GetConjugationTable(word string) (*ConjugationTable, error) {
 	inf, infId, err := db.GetInfinitive(word)
-	if err != nil {
+	if err == sql.ErrNoRows {
+		return nil, errors.New("word " + word + " does not exist")
+	} else if err != nil {
 		return nil, err
 	}
 
