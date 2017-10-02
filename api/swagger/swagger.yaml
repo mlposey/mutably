@@ -6,7 +6,7 @@ info:
   contact:
     email: marcusposey@gmail.com
 host: localhost
-basePath: /v1
+basePath: /api/v1
 tags:
   - name: languages
     description: Languages implemented by the API
@@ -110,7 +110,7 @@ paths:
           description: word not found
           schema:
             $ref: '#/definitions/ErrorResponse'
-  '/words/{id}/inflections':
+  '/words/{word}/inflections':
     get:
       tags:
         - words
@@ -118,17 +118,15 @@ paths:
       produces:
         - application/json
       parameters:
-        - name: id
+        - name: word
           in: path
-          description: The id of the word
           required: true
-          type: integer
-          format: int64
+          type: string
       responses:
         '200':
           description: success
           schema:
-            $ref: '#/definitions/InflectionTable'
+            $ref: '#/definitions/ConjugationTable'
         '404':
           description: word has no inflections
           schema:
@@ -250,31 +248,36 @@ definitions:
       language:
         type: integer
         format: int64
-  InflectionTable:
-    description: All inflections of an infinitive verb
+  ConjugationTable:
+    description: Present- and past-tense inflections of a verb
     type: object
     properties:
-      id:
-        type: integer
-        format: int64
-      infinitive:
+      Infinitive:
         type: string
-      present:
-        $ref: '#/definitions/InflectionTense'
-      past:
-        $ref: '#/definitions/InflectionTense'
-  InflectionTense:
+      Present:
+        $ref: '#/definitions/VerbTense'
+      Past:
+        $ref: '#/definitions/VerbTense'
+  VerbTense:
     description: The inflections of an infinitive verb in a single tense
     type: object
     properties:
-      first-person:
-        type: string
-      second-person:
-        type: string
-      third-person:
-        type: string
-      plural:
-        type: string
+      First:
+        type: array
+        items:
+          type: string
+      Second:
+        type: array
+        items:
+          type: string
+      Third:
+        type: array
+        items:
+          type: string
+      Plural:
+        type: array
+        items:
+          type: string
   ErrorResponse:
     description: A detailed error message
     type: object
