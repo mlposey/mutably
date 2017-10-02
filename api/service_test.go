@@ -1,52 +1,20 @@
 package main_test
 
 import (
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	_ "github.com/lib/pq"
-	"github.com/satori/go.uuid"
-	"log"
 	"mutably/api"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"testing"
 )
 
-var service *main.Service
-var db *sql.DB
-
-func init() {
-	host := os.Getenv("DATABASE_HOST")
-	name := os.Getenv("DATABASE_NAME")
-	user := os.Getenv("DATABASE_USER")
-	pwd := os.Getenv("DATABASE_PASSWORD")
-
-	var err error
-	db, err = sql.Open("postgres", fmt.Sprintf(
-		"dbname=%s user=%s password=%s host=%s sslmode=disable",
-		name, user, pwd, host,
-	))
-
-	// This won't directly be used by tests.
-	database, err := main.NewDB(host, name, user, pwd)
-	if err != nil {
-		log.Fatal("Could not access database; ", err)
-	}
-
-	service, err = main.NewService(database, "8080")
-	if err != nil {
-		log.Fatal("Could not start service; ", err)
-	}
-}
-
 // APIv1 should return a 404 response code if a specific language
 // is requested but does not exist.
 func TestGetLanguage_v1_missing(t *testing.T) {
-	clearTable(t, "languages")
+	clearDatabase(t)
 
 	req, _ := http.NewRequest("GET", "/api/v1/languages/3", nil)
 	resp := sendRequest(req)
@@ -76,7 +44,7 @@ func TestGetLanguage_v1_exists(t *testing.T) {
 // APIv1 should return a 404 response code if a collection of all languages
 // is requested but the database has none.
 func TestGetLanguages_v1_empty(t *testing.T) {
-	clearTable(t, "languages")
+	clearDatabase(t)
 
 	req, _ := http.NewRequest("GET", "/api/v1/languages", nil)
 	resp := sendRequest(req)
@@ -86,7 +54,7 @@ func TestGetLanguages_v1_empty(t *testing.T) {
 // APIv1 should return a 200 response code along with an array of all stored
 // languages if any exist.
 func TestGetLanguages_v1_notempty(t *testing.T) {
-	clearTable(t, "languages")
+	clearDatabase(t)
 	lang1, _ := addLanguage(t)
 	lang2, _ := addLanguage(t)
 
@@ -123,7 +91,7 @@ func TestGetLanguages_v1_notempty(t *testing.T) {
 
 // APIv1 should return a 404 response code if the database contains no words.
 func TestGetWords_v1_empty(t *testing.T) {
-	clearTable(t, "words")
+	clearDatabase(t)
 
 	req, _ := http.NewRequest("GET", "/api/v1/words", nil)
 	resp := sendRequest(req)
@@ -133,8 +101,8 @@ func TestGetWords_v1_empty(t *testing.T) {
 // APIv1 should return a 200 response code along with an array of all words
 // if any exist.
 func TestGetWords_v1_notempty(t *testing.T) {
-	clearTable(t, "words")
-	wordId, _ := addWord(t)
+	clearDatabase(t)
+	_, wordId, _ := createVerbForm(t)
 
 	req, _ := http.NewRequest("GET", "/api/v1/words", nil)
 	resp := sendRequest(req)
@@ -154,7 +122,7 @@ func TestGetWords_v1_notempty(t *testing.T) {
 
 // APIv1 should return a 404 response code if a requested word does not exist.
 func TestGetWord_v1_empty(t *testing.T) {
-	clearTable(t, "words")
+	clearDatabase(t)
 
 	req, _ := http.NewRequest("GET", "/api/v1/words/3", nil)
 	resp := sendRequest(req)
@@ -164,10 +132,10 @@ func TestGetWord_v1_empty(t *testing.T) {
 // APIv1 should return a 200 response code along with the requested word if
 // it exists.
 func TestGetWord_v1_notempty(t *testing.T) {
-	clearTable(t, "words")
-	wordId, _ := addWord(t)
-	addWord(t)
-	addWord(t)
+	clearDatabase(t)
+	_, wordId, _ := createVerbForm(t)
+	createVerbForm(t)
+	createVerbForm(t)
 
 	req, _ := http.NewRequest("GET", "/api/v1/words/"+strconv.Itoa(wordId), nil)
 	resp := sendRequest(req)
@@ -184,8 +152,8 @@ func TestGetWord_v1_notempty(t *testing.T) {
 // APIv1 should return a 401 response code if the client sends a request
 // and has no token.
 func TestGetUsers_v1_forbidden(t *testing.T) {
-	clearTable(t, "users")
-	addUser(t)
+	clearDatabase(t)
+	createUser(t)
 
 	req, _ := http.NewRequest("GET", "/api/v1/users", nil)
 	resp := sendRequest(req)
@@ -195,8 +163,8 @@ func TestGetUsers_v1_forbidden(t *testing.T) {
 // APIv1 should return a 401 response code if the client sends a request
 // and has no token.
 func TestGetUser_v1_forbidden(t *testing.T) {
-	clearTable(t, "users")
-	userId, _, _ := addUser(t)
+	clearDatabase(t)
+	userId, _, _ := createUser(t)
 
 	req, _ := http.NewRequest("GET", "/api/v1/users/"+userId, nil)
 	resp := sendRequest(req)
@@ -206,14 +174,14 @@ func TestGetUser_v1_forbidden(t *testing.T) {
 // APIv1 should return a status created code if asked to create a user with
 // name that is not in the database.
 func TestCreateUser_v1_unique(t *testing.T) {
-	clearTable(t, "users")
+	clearDatabase(t)
 	requestAccount(t, "user", "pass")
 }
 
 // APIv1 should return a bad request code if asked to create a user with a
 // name that already exists.
 func TestCreateUser_v1_duplicate(t *testing.T) {
-	clearTable(t, "users")
+	clearDatabase(t)
 
 	var resp *httptest.ResponseRecorder
 	for i := 0; i < 2; i++ {
@@ -228,108 +196,3 @@ func TestCreateUser_v1_duplicate(t *testing.T) {
 
 // TODO: Test POST /users bad or missing authorization header.
 // TODO: Test POST /users bad username:password format
-
-func sendRequest(request *http.Request) *httptest.ResponseRecorder {
-	recorder := httptest.NewRecorder()
-	service.Router.ServeHTTP(recorder, request)
-	return recorder
-}
-
-func checkCode(t *testing.T, expected, actual int) {
-	t.Helper()
-	if expected != actual {
-		t.Error("Expected response code ", expected, ", got ", actual)
-	}
-}
-
-func clearTable(t *testing.T, table string) {
-	t.Helper()
-	_, err := db.Exec("DELETE FROM " + table)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-// requestAccount supplies credentials to the HTTP account creation resource.
-// Returns the user's jwt token
-func requestAccount(t *testing.T, user, pass string) string {
-	t.Helper()
-
-	req, err := http.NewRequest("POST", "/api/v1/users", nil)
-	if err != nil {
-		t.Error(err)
-	}
-	cred := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
-	req.Header.Set("Authorization", "Basic "+cred)
-	resp := sendRequest(req)
-	checkCode(t, http.StatusCreated, resp.Code)
-
-	var respBody map[string]string
-	json.Unmarshal(resp.Body.Bytes(), &respBody)
-
-	return respBody["token"]
-}
-
-// addUser inserts a new user into the database with a random username and
-// password. The user's id, username, and password are returned.
-func addUser(t *testing.T) (string, string, string) {
-	t.Helper()
-
-	username := uuid.NewV4().String()
-	password := uuid.NewV4().String()
-	var userId string
-
-	err := db.QueryRow(`
-		SELECT create_user($1, $2)`,
-		username, password,
-	).Scan(&userId)
-	if err != nil {
-		t.Error(err)
-	}
-	return userId, username, password
-}
-
-func addWord(t *testing.T) (int, int) {
-	t.Helper()
-
-	langId, _ := addLanguage(t)
-	word := uuid.NewV4().String()
-
-	var tableId int
-	err := db.QueryRow(`
-		SELECT add_infinitive($1, $2)`,
-		word, langId,
-	).Scan(&tableId)
-	if err != nil {
-		t.Error(err)
-	}
-
-	var wordId int
-	err = db.QueryRow(`
-		SELECT word_id FROM verbs
-		WHERE  conjugation_table = $1`,
-		tableId,
-	).Scan(&wordId)
-	if err != nil {
-		t.Error(err)
-	}
-
-	return wordId, langId
-}
-
-func addLanguage(t *testing.T) (id int, name string) {
-	t.Helper()
-	name = uuid.NewV4().String()
-
-	err := db.QueryRow(`
-		INSERT INTO languages (language, tag)
-		VALUES ($1, $2)
-		RETURNING id`,
-		name, uuid.NewV4().String(),
-	).Scan(&id)
-
-	if err != nil {
-		t.Error(err)
-	}
-	return id, name
-}
