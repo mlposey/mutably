@@ -214,6 +214,24 @@ type TenseInflection struct {
 	Plural []string
 }
 
+// Consume places word in the appropriate grammatical category in tense.
+func (tense *TenseInflection) Consume(word string, person Person, number Number) {
+	if number == Plural {
+		// plural won't have a person
+		tense.Plural = append(tense.Plural, word)
+	} else if number == Singular {
+		if person&First != 0 {
+			tense.First = append(tense.First, word)
+		}
+		if person&Second != 0 {
+			tense.Second = append(tense.Second, word)
+		}
+		if person&Third != 0 {
+			tense.Third = append(tense.Third, word)
+		}
+	}
+}
+
 // Person defines the grammatical person of a finite verb form.
 // TODO: anvil has a similar definition. Try to share them.
 type Person int
@@ -222,6 +240,14 @@ const (
 	First  Person = 1 << 1
 	Second Person = 1 << 2
 	Third  Person = 1 << 3
+)
+
+// Number defines the grammatical number of a finite verb form.
+type Number int
+
+const (
+	Singular Number = 1
+	Plural   Number = 2
 )
 
 // GetConjugationTable retrieves a tense inflection for word.
@@ -253,24 +279,12 @@ func (db *PsqlDB) GetConjugationTable(word string) (*ConjugationTable, error) {
 	for rows.Next() {
 		var form string
 		var person Person
-		var num, tense int
+		var number Number
+		var tense int
 
-		rows.Scan(&form, &num, &tense, &person)
+		rows.Scan(&form, &number, &tense, &person)
 		tense--
-		if num == 2 {
-			// plural won't have a person
-			tenses[tense].Plural = append(tenses[tense].Plural, form)
-		} else {
-			if person&First != 0 {
-				tenses[tense].First = append(tenses[tense].First, form)
-			}
-			if person&Second != 0 {
-				tenses[tense].Second = append(tenses[tense].Second, form)
-			}
-			if person&Third != 0 {
-				tenses[tense].Third = append(tenses[tense].Third, form)
-			}
-		}
+		tenses[tense].Consume(form, person, number)
 	}
 
 	return &ConjugationTable{
