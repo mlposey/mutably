@@ -21,13 +21,10 @@ func TestConjugate_detectInfinitive(t *testing.T) {
 	db, dutch := makeDutch()
 	infinitive := "krijgen"
 
-	err := dutch.Conjugate(&model.Verb{
-		Text:     infinitive,
-		Template: "{{nl-verb}}",
-	})
+	err := dutch.Conjugate(infinitive, "{{nl-verb}}")
 	check(t, err)
 
-	if db.Infinitive != infinitive {
+	if db.Words[db.InfinitiveId] != infinitive {
 		t.Error("Dutch does not detect pure infinitive templates")
 	}
 	if db.Plural != infinitive {
@@ -42,10 +39,7 @@ func TestConjugate_identify_person(t *testing.T) {
 	db, dutch := makeDutch()
 	word := "krijg"
 
-	err := dutch.Conjugate(&model.Verb{
-		Text:     word,
-		Template: "{{nl-verb form of|p=1|n=sg|t=pres|m=ind|krijgen}}",
-	})
+	err := dutch.Conjugate(word, "{{nl-verb form of|p=1|n=sg|t=pres|m=ind|krijgen}}")
 	check(t, err)
 
 	if db.First != word || db.Second == word || db.Third == word {
@@ -57,20 +51,14 @@ func TestConjugate_identify_person(t *testing.T) {
 func TestConjugate_identify_tense(t *testing.T) {
 	db, dutch := makeDutch()
 
-	err := dutch.Conjugate(&model.Verb{
-		Text:     "kreeg",
-		Template: "{{nl-verb form of|n=sg|t=past|m=ind|krijgen}}",
-	})
+	err := dutch.Conjugate("kreeg", "{{nl-verb form of|n=sg|t=past|m=ind|krijgen}}")
 	check(t, err)
 
 	if db.Tense != "past" {
 		t.Error("Expected 'past', got", db.Tense)
 	}
 
-	err = dutch.Conjugate(&model.Verb{
-		Text:     "krijg",
-		Template: "{{nl-verb form of|p=1|n=sg|t=pres|m=ind|krijgen}}",
-	})
+	err = dutch.Conjugate("krijg", "{{nl-verb form of|p=1|n=sg|t=pres|m=ind|krijgen}}")
 	check(t, err)
 
 	if db.Tense != "present" {
@@ -81,11 +69,7 @@ func TestConjugate_identify_tense(t *testing.T) {
 // Dutch.Conjugate should only attempt to conjugate the indicative mood for now.
 func TestConjugate_check_mood(t *testing.T) {
 	db, dutch := makeDutch()
-	err := dutch.Conjugate(&model.Verb{
-		Text:     "krijgt",
-		Template: "{{nl-verb form of|n=pl|m=imp|krijgen}}",
-	})
-	check(t, err)
+	dutch.Conjugate("krijgt", "{{nl-verb form of|n=pl|m=imp|krijgen}}")
 
 	if db.TableAccessCount != 0 {
 		t.Error("Dutch attempted to conjugate mood other than indicative")
@@ -107,6 +91,7 @@ func check(t *testing.T, err error) {
 }
 
 type mockDB struct {
+	Words            []string
 	Infinitive       string
 	InfinitiveId     int
 	First            string
@@ -117,40 +102,32 @@ type mockDB struct {
 	TableAccessCount int
 }
 
-func (db *mockDB) InsertLanguage(*model.Language) {}
-func (db *mockDB) InsertWord(string) (wordId int) { return 0 }
-func (db *mockDB) InsertVerb(wordId int, languageId int,
-	tableId int) (verbId int, err error) {
-	return 0, nil
+func (db *mockDB) InsertLanguage(*model.Language) error { return nil }
+func (db *mockDB) InsertWord(word string) (wordId int) {
+	db.Words = append(db.Words, word)
+	return len(db.Words) - 1
 }
-
-func (db *mockDB) InsertInfinitive(word string, languageId int) (tableId int) {
-	db.Infinitive = word
-	return 1
-}
-func (db *mockDB) InsertAsTense(verb *model.Verb, tense, person string,
-	isPlural bool) error {
+func (db *mockDB) InsertVerbForm(verb *model.VerbForm) error {
 	db.TableAccessCount++
-
-	db.Tense = tense
-	if isPlural {
-		db.Plural = verb.Text
-		return nil
+	db.InfinitiveId = verb.InfinitiveId
+	if verb.Tense == model.Present {
+		db.Tense = "present"
+	} else if verb.Tense == model.Past {
+		db.Tense = "past"
 	}
 
-	switch person {
-	case "first":
-		db.First = verb.Text
-	case "second":
-		db.Second = verb.Text
-	case "third":
-		db.Third = verb.Text
+	if verb.Number == model.Plural {
+		db.Plural = verb.Word
+	} else {
+		if verb.Person&model.First != 0 {
+			db.First = verb.Word
+		}
+		if verb.Person&model.Second != 0 {
+			db.Second = verb.Word
+		}
+		if verb.Person&model.Third != 0 {
+			db.Third = verb.Word
+		}
 	}
-
-	return nil
-}
-func (db *mockDB) InsertPlural(word, tense string, tableId int) error {
-	db.TableAccessCount++
-	db.Plural = word
 	return nil
 }

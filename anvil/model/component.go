@@ -34,6 +34,15 @@ const (
 	Plural   GrammaticalNumber = 2
 )
 
+// GrammaticalPerson is a property of finite verbs.
+type GrammaticalPerson int
+
+const (
+	First  GrammaticalPerson = 1 << 1
+	Second GrammaticalPerson = 1 << 2
+	Third  GrammaticalPerson = 1 << 3
+)
+
 // VerbForm defines a language-specific form of an infinitive verb.
 type VerbForm struct {
 	LanguageId   int
@@ -42,10 +51,5 @@ type VerbForm struct {
 	Word   string
 	Tense  GrammaticalTense
 	Number GrammaticalNumber
-
-	// First:  1 << 1
-	// Second: 1 << 2
-	// Third:  1 << 3
-	// The configurations can be combined using the '|' operator.
-	Person int
+	Person GrammaticalPerson
 }

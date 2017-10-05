@@ -86,6 +86,9 @@ func (dutch *Dutch) handleInfinitive(verb string) {
 
 // handleFinite manages a finite verb form.
 func (dutch *Dutch) handleFinite(verb, template string) error {
+	if !dutch.hasSupportedMood(template) {
+		return errors.New("Unsupported mood")
+	}
 	dutch.database.InsertWord(verb)
 
 	infinitive := dutch.infRef.FindStringSubmatch(template)
@@ -112,21 +115,12 @@ func (dutch *Dutch) handleFinite(verb, template string) error {
 	if e != nil {
 		return e
 	}
-	//log.Printf("%+v\n", *verbForm)
 	return dutch.database.InsertVerbForm(verbForm)
 }
 
 // assemble uses a template to assemble the parts of a VerbForm.
 func (dutch *Dutch) assemble(verb, template string,
 	infinitiveId int) (*model.VerbForm, error) {
-	moods := dutch.mood.FindStringSubmatch(template)
-	if moods != nil && moods[1] != "ind" {
-		// Some finite verb templates don't display a mood, and all infinitves
-		// don't. That means it's important that only finite verbs enter
-		// this method.
-		return nil, errors.New("Expected ind mood")
-	}
-
 	tense, err := dutch.getTense(template)
 	if err != nil {
 		return nil, err
@@ -142,7 +136,7 @@ func (dutch *Dutch) assemble(verb, template string,
 		return nil, e
 	}
 
-	var person int
+	var person model.GrammaticalPerson
 	if number == model.Singular {
 		person = dutch.getPerson(template)
 	}
@@ -189,28 +183,37 @@ func (dutch *Dutch) getTense(template string) (model.GrammaticalTense, error) {
 }
 
 // getPersons extracts the grammatical person defininitions from a template.
-func (dutch *Dutch) getPerson(template string) int {
-	var person int
+func (dutch *Dutch) getPerson(template string) model.GrammaticalPerson {
+	var person model.GrammaticalPerson
 	match := dutch.person.FindStringSubmatch(template)
 
 	if match != nil {
 		for _, p := range match[1] {
 			switch p {
 			case '1':
-				person |= 1 << 1
+				person |= model.First
 			case '2':
-				person |= 1 << 2
+				person |= model.Second
 			case '3':
-				person |= 1 << 3
+				person |= model.Third
 			default:
 				log.Println("Invalid person in template", template)
 			}
 		}
 	} else {
 		// The absence of a person definition means it applies to all persons.
-		person = (1 << 1) | (1 << 2) | (1 << 3)
+		person = model.First | model.Second | model.Third
 	}
 	return person
+}
+
+// hasSupportedMood returns true if the verb having a certain mood can be
+// conjugated, false otherwise.
+func (dutch *Dutch) hasSupportedMood(template string) bool {
+	moods := dutch.mood.FindStringSubmatch(template)
+	// When other moods are added, you can just group them separate from the
+	// null check.
+	return moods != nil && moods[1] == "ind"
 }
 
 // Cache for infinitive word ids

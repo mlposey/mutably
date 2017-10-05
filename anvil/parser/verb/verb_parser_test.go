@@ -76,42 +76,31 @@ func (m *mockConjugator) SetDatabase(db model.Database) error {
 	m.database = db
 	return nil
 }
-func (m *mockConjugator) Conjugate(v *model.Verb) error {
-	_, err := m.database.InsertVerb(v.WordId, m.GetLanguage().Id, v.TableId)
+func (m *mockConjugator) Conjugate(verb, template string) error {
+	err := m.database.InsertVerbForm(&model.VerbForm{Word: verb})
 	return err
 }
 
 type mockDB struct {
 	languages []*model.Language
 	words     []string
-	verbs     []int
+	verbs     []*model.VerbForm
 }
 
 func newMockDB() *mockDB {
 	return &mockDB{languages: mockPage.Languages}
 }
 
-func (m *mockDB) InsertLanguage(language *model.Language) {
+func (m *mockDB) InsertLanguage(language *model.Language) error {
 	m.languages = append(m.languages, language)
+	return nil
 }
 func (m *mockDB) InsertWord(word string) (wordId int) {
 	m.words = append(m.words, word)
 	return len(m.words) - 1
 }
-func (m *mockDB) InsertVerb(wordId int, languageId int,
-	tableId int) (verbId int, err error) {
-	m.verbs = append(m.verbs, wordId)
-	return len(m.verbs) - 1, nil
-}
-
-func (m *mockDB) InsertInfinitive(word string, languageId int) (tableId int) {
-	return 0
-}
-func (m *mockDB) InsertAsTense(verb *model.Verb, tense, person string,
-	isPlural bool) error {
-	return nil
-}
-func (m *mockDB) InsertPlural(word, tense string, tableId int) error {
+func (m *mockDB) InsertVerbForm(verb *model.VerbForm) error {
+	m.verbs = append(m.verbs, verb)
 	return nil
 }
 
