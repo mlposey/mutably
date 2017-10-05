@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
+	"log"
 )
 
 // A Database facilitates interaction with a collection of data and ensures
@@ -33,6 +34,16 @@ type PsqlDB struct {
 // A non-nil error is returned if there was a problem connecting to the
 // database.
 func NewDB(host, name, user, password string) (*PsqlDB, error) {
+	log.Printf(
+		`
+-----------------Database Environment-----------------
+DATABASE_HOST: %s
+DATABASE_NAME: %s
+DATABASE_USER: %s
+DATABASE_PASSWORD: *redacted*
+------------------------------------------------------`,
+		host, name, user,
+	)
 	db, err := sql.Open("postgres", fmt.Sprintf(
 		"dbname=%s user=%s password=%s host=%s sslmode=disable",
 		name, user, password, host,
