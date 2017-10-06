@@ -5,8 +5,8 @@ todo
 # All Subprojects
 **/cp.out
 
-# Database
-database/data/*.xml
+# Archive
+archive/*.xml
 
 # anvil
 anvil/anvil

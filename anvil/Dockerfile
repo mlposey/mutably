@@ -25,7 +25,7 @@ WORKDIR /app
 COPY --from=builder /go/src/mutably/anvil/anvil .
 COPY --from=builder /external/wait-for-it/wait-for-it.sh .
 
-ENTRYPOINT /bin/bash wait-for-it.sh $DB_HOST:$DB_PORT -t 0 -- \
-  ./anvil import -host=$DB_HOST -port=$DB_PORT -d=$POSTGRES_DB \
-  -u=$POSTGRES_USER -p=$POSTGRES_PASSWORD /archive/*.xml
+ENTRYPOINT /bin/bash wait-for-it.sh -h $DATABASE_HOST -p 5432 -t 0 -- \
+  ./anvil import -host=$DATABASE_HOST -port=5432 -d=$DATABASE_NAME \
+  -u=$DATABASE_USER -p=$DATABASE_PASSWORD /archive/*.xml
 

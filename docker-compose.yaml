@@ -1,0 +1,48 @@
+# This is the docker-compose file for the Mutably service. It does not define
+# passwords or private keys. Those variables should be set prior to calling
+# docker-compose.
+#
+# Required (but missing) environment variables:
+#   POSTGRES_PASSWORD   <-- For the database (same as DATABASE_PASSWORD)
+#   DATABASE_PASSWORD   <-- For the api/importer (same as POSTGRES_PASSWORD)
+#   API_PRIVATE_KEY     <-- For the api
+version: '3'
+services:
+  database:
+    build: ./database
+    restart: always
+    environment:
+      - POSTGRES_USER=mutably
+      - POSTGRES_DB=mutably
+      - POSTGRES_PASSWORD
+    volumes:
+      - database-volume:/var/lib/postgresql/data
+
+  anvil:
+    build: ./anvil
+    depends_on:
+      - database
+    environment:
+      - DATABASE_HOST=database
+      - DATABASE_NAME=mutably
+      - DATABASE_USER=mutably
+      - DATABASE_PASSWORD
+    volumes:
+      - ./archive:/archive
+
+  api:
+    build: ./api
+    restart: always
+    depends_on:
+      - database
+    environment:
+      - DATABASE_HOST=database
+      - DATABASE_NAME=mutably
+      - DATABASE_USER=mutably
+      - DATABASE_PASSWORD
+      - API_PRIVATE_KEY
+    ports:
+      - 8080:8080
+
+volumes:
+  database-volume:
