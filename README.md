@@ -15,16 +15,23 @@ to voice platforms. To accomplish this, we need:
 
 ## Project Structure
 The project has three components for now:
-* database
-* anvil
-* api
+* database - a PostgreSQL database for storing word data
+* anvil    - a tool exploring and importing archives
+* api      - a RESTful API that provides unified access to core service logic
 
-`database` uses Docker and PostgreSQL to define the production database environment.
-You can refer to the .sql schema files there for details on how data is managed
-by the project. The next componenet, `anvil`, is a tool for sifting through
-datasets and using them to build the application's relational data model. With
-cleaned data in the database, `api` creates a front-end REST layer that any
-platform can use to interfact with the core logic.
+## Starting The Service
+Before starting the service, you should install the following: 
+1. Docker
+2. Docker Compose
+3. wget
+4. lbzip2
+
+Then carry out the following two steps: 
+1. Run `get-archive.sh` from the `archive` folder. This downloads a Wiktionary
+archive for parsing. At the time of writing, the final archive is ~6G.
+2. Run `docker-compose up` in the root project directory, passing in the required
+environment variables. See [the docker-compose file](./docker-compose.yaml) for
+a list of required variables.
 
 ## Development Pipeline
 It is important that the main branch stays production ready. This goal is
