@@ -61,7 +61,7 @@ func (s *Service) registerV1Routes() {
 
 // Start makes service begin listening for connections on the specified port.
 func (service *Service) Start() error {
-	log.Println("Starting service")
+	log.Println("Starting service...")
 	go func() {
 		net.Dial("tcp", "localhost:"+service.port)
 		log.Println("And we're live.")
