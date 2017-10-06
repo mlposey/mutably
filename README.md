@@ -28,7 +28,8 @@ Before starting the service, you should install the following:
 
 Then carry out the following two steps: 
 1. Run `get-archive.sh` from the `archive` folder. This downloads a Wiktionary
-archive for parsing. At the time of writing, the final archive is ~6G.
+archive for parsing. The initial download is ~700M and the decompressed version
+is ~6G. The service only needs the decompressed file.
 2. Run `docker-compose up` in the root project directory, passing in the required
 environment variables. See [the docker-compose file](./docker-compose.yaml) for
 a list of required variables.
