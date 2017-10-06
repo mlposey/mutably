@@ -97,7 +97,7 @@ func (service *Service) respondWithAggregate(w http.ResponseWriter,
 		if err != nil {
 			log.Println(err)
 		}
-		service.makeErrorResponse(w, http.StatusNotFound, "no "+resource+" exists")
+		service.makeErrorResponse(w, http.StatusNotFound, "no "+resource+" exist")
 	} else {
 		service.makeJsonResponse(w, http.StatusOK, objects)
 	}
