@@ -5,7 +5,7 @@ info:
   title: Mutably
   contact:
     email: marcusposey@gmail.com
-host: localhost
+host: 'localhost:8080'
 basePath: /api/v1
 tags:
   - name: languages
