@@ -1,0 +1,8 @@
+FROM golang:1.9
+
+WORKDIR /go/src/mutably/anvil/
+COPY . .
+
+RUN go get -v \
+ && go build \
+ && /bin/bash test_with_coverage.sh
