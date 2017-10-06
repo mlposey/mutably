@@ -34,6 +34,9 @@ is ~6G. The service only needs the decompressed file.
 environment variables. See [the docker-compose file](./docker-compose.yaml) for
 a list of required variables.
 
+The REST documentation can be found on the host at port 80 and the REST service
+at port 8080.
+
 ## Development Pipeline
 It is important that the main branch stays production ready. This goal is
 accomplished by only introducing changes through PRs--which are only accepted
