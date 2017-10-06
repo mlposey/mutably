@@ -7,6 +7,7 @@ todo
 
 # Archive
 archive/*.xml
+archive/*.xml.bz2
 
 # anvil
 anvil/anvil
