@@ -250,3 +250,51 @@ func TestGetInflections_v1_exists(t *testing.T) {
 //       Right now the tests only check the infinitive, but we should ensure
 //       that API calls that use the various forms also retrieve the same
 //       table.
+
+// APIv1 should return a new JWT if /sessions is given a set of credentials
+// (through the Authorization header) that match an existing user.
+func TestGetSession_validCredentials(t *testing.T) {
+	clearDatabase(t)
+
+	req, err := http.NewRequest("GET", "/api/v1/sessions", nil)
+	checkError(t, err)
+
+	_, user, pass := createUser(t)
+	cred := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
+	req.Header.Set("Authorization", "Basic "+cred)
+
+	resp := sendRequest(req)
+	if resp.Code != http.StatusOK {
+		t.Error("Expected 200 status when providing valid credentials")
+	}
+
+	var respBody map[string]string
+	json.Unmarshal(resp.Body.Bytes(), &respBody)
+	if respBody["token"] == "" {
+		t.Error("Expected token in body of validated session response")
+	}
+}
+
+// APIv1 should return an error message if /sessions is given a set of credentials
+// that do not belong to any user.
+func TestGetSession_invalidCredentials(t *testing.T) {
+	clearDatabase(t)
+
+	req, err := http.NewRequest("GET", "/api/v1/sessions", nil)
+	checkError(t, err)
+
+	user, pass := "not_a_real_user", "a_fake_pass"
+	cred := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
+	req.Header.Set("Authorization", "Basic "+cred)
+
+	resp := sendRequest(req)
+	if resp.Code == http.StatusOK {
+		t.Error("Found 200 status code in result of failed GET /sessions")
+	}
+
+	var respBody map[string]string
+	json.Unmarshal(resp.Body.Bytes(), &respBody)
+	if respBody["error"] == "" {
+		t.Error("Expected error response from bad GET /sessions")
+	}
+}

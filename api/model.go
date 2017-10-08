@@ -199,6 +199,20 @@ func (db *PsqlDB) IsAdmin(userId string) bool {
 	return role == "admin"
 }
 
+// GetUserId returns the id of a user with the matching username and password or
+// an empty string if the credentials are invalid.
+// password should be plaintext; the database will handle any hashing/salting.
+func (db *PsqlDB) GetUserId(username, password string) string {
+	var id string
+	db.QueryRow(`
+		SELECT id FROM users
+		WHERE name = $1
+		AND   password = crypt($2, password)`,
+		username, password,
+	).Scan(&id)
+	return id
+}
+
 // Conjugation table stores the present and past tense forms of an infintive.
 type ConjugationTable struct {
 	Infinitive string

@@ -22,6 +22,7 @@ type Database interface {
 	GetUsers() ([]*User, error)
 	CreateUser(string, string) (string, error)
 	IsAdmin(string) bool
+	GetUserId(username, password string) string
 	GetConjugationTable(word string) (*ConjugationTable, error)
 }
 
