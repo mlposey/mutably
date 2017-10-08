@@ -208,7 +208,7 @@ func (service *Service) getUser_v1(w http.ResponseWriter, r *http.Request) {
 			service.makeJsonResponse(w, http.StatusOK, user)
 		}
 	} else {
-		service.makeErrorResponse(w, http.StatusForbidden,
+		service.makeErrorResponse(w, http.StatusUnauthorized,
 			"insufficient permissions")
 	}
 }
@@ -224,7 +224,7 @@ func (service *Service) createSessionTok_v1(w http.ResponseWriter, r *http.Reque
 	userId := service.db.GetUserId(username, password)
 
 	if userId == "" {
-		service.makeErrorResponse(w, http.StatusForbidden,
+		service.makeErrorResponse(w, http.StatusUnauthorized,
 			"invalid user credentials")
 	} else {
 		w.WriteHeader(http.StatusOK)
