@@ -14,7 +14,7 @@ tags:
     description: Words from all supported languages
   - name: users
     description: User data
-  - name: sessions
+  - name: tokens
     description: Resource for retrieving JSON Web Tokens
 schemes:
   - http
@@ -216,10 +216,10 @@ paths:
           description: user not found
           schema:
             $ref: '#/definitions/ErrorResponse'
-  /sessions:
+  /tokens:
     get:
       tags:
-        - sessions
+        - tokens
       summary: Get a new JWT
       description: >-
         The client should provide a username and password as a Basic

@@ -58,7 +58,7 @@ func (s *Service) registerV1Routes() {
 	v1.HandleFunc("/users", s.createUser_v1).Methods("POST")
 	v1.Handle("/users/{id}", s.auth.Authenticate(s.getUser_v1)).Methods("GET")
 
-	v1.HandleFunc("/sessions", s.createSessionTok_v1).Methods("GET")
+	v1.HandleFunc("/tokens", s.getToken_v1).Methods("GET")
 }
 
 // Start makes service begin listening for connections on the specified port.
@@ -213,8 +213,8 @@ func (service *Service) getUser_v1(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GET /api/v1/sessions
-func (service *Service) createSessionTok_v1(w http.ResponseWriter, r *http.Request) {
+// GET /api/v1/tokens
+func (service *Service) getToken_v1(w http.ResponseWriter, r *http.Request) {
 	username, password, err := service.auth.GetCredentials(r)
 	if err != nil {
 		service.makeErrorResponse(w, http.StatusBadRequest, err.Error())
@@ -222,7 +222,6 @@ func (service *Service) createSessionTok_v1(w http.ResponseWriter, r *http.Reque
 	}
 
 	userId := service.db.GetUserId(username, password)
-
 	if userId == "" {
 		service.makeErrorResponse(w, http.StatusUnauthorized,
 			"invalid user credentials")
