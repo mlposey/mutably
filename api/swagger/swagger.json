@@ -22,6 +22,10 @@
     {
       "name": "users",
       "description": "User data"
+    },
+    {
+      "name": "sessions",
+      "description": "Resource for retrieving JSON Web Tokens"
     }
   ],
   "schemes": [
@@ -246,7 +250,7 @@
           "users"
         ],
         "summary": "Creates a new user",
-        "description": "The client should provide a username and password as a Basic Authorization header. They should be join by a colon like so - aUser:pwd123",
+        "description": "The client should provide a username and password as a Basic Authorization header. They should be joined by a colon like so - aUser:pwd123",
         "consumes": [
           "application/json"
         ],
@@ -259,6 +263,12 @@
           }
         ],
         "responses": {
+          "201": {
+            "description": "user created",
+            "schema": {
+              "$ref": "#/definitions/TokenResponse"
+            }
+          },
           "400": {
             "description": "failed to create user",
             "schema": {
@@ -308,6 +318,38 @@
           },
           "404": {
             "description": "user not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/sessions": {
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Get a new JWT",
+        "description": "The client should provide a username and password as a Basic Authorization header. They should be joined by a colon like so - aUser:pwd123",
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "schema": {
+              "$ref": "#/definitions/TokenResponse"
+            }
+          },
+          "401": {
+            "description": "invalid user credentials",
             "schema": {
               "$ref": "#/definitions/ErrorResponse"
             }
@@ -421,6 +463,15 @@
       "type": "object",
       "properties": {
         "error": {
+          "type": "string"
+        }
+      }
+    },
+    "TokenResponse": {
+      "description": "A JWT",
+      "type": "object",
+      "properties": {
+        "token": {
           "type": "string"
         }
       }
