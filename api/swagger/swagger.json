@@ -8,7 +8,7 @@
       "email": "marcusposey@gmail.com"
     }
   },
-  "host": "localhost:8080",
+  "host": "srv.marcusposey.com:9000",
   "basePath": "/api/v1",
   "tags": [
     {
