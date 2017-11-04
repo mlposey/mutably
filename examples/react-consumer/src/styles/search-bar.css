@@ -1,0 +1,14 @@
+input {
+    font-size: 20pt;
+    font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+    height: 25px;
+    width: 200px;
+    text-align: center;
+    margin-left: 30%;
+    margin-bottom: 10%;
+    border-radius:2px;
+}
+
+input:hover {
+    border-color: blue;
+}
