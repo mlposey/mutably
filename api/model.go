@@ -228,6 +228,20 @@ type TenseInflection struct {
 	Plural []string
 }
 
+// NewTenseInflection creates a TenseInflection with empty arrays for
+// each person field.
+// This is better than using &TenseInflection{} because marshaled
+// JSON objects with empty fields will show as '[]' instead of 'null'.
+// Some users of the API may have trouble parsing null fields.
+func NewTenseInflection() *TenseInflection {
+	return &TenseInflection{
+		First: make([]string, 0),
+		Second: make([]string, 0),
+		Third: make([]string, 0),
+		Plural: make([]string, 0),
+	}
+}
+
 // Consume places word in the appropriate grammatical category in tense.
 func (tense *TenseInflection) Consume(word string, person Person, number Number) {
 	if number == Plural {
@@ -289,7 +303,7 @@ func (db *PsqlDB) GetConjugationTable(word string) (*ConjugationTable, error) {
 		return nil, err
 	}
 
-	tenses := []*TenseInflection{&TenseInflection{}, &TenseInflection{}}
+	tenses := []*TenseInflection{NewTenseInflection(), NewTenseInflection()}
 	for rows.Next() {
 		var form string
 		var person Person
