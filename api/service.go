@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"log"
 	"net"
 	"net/http"
@@ -68,7 +69,9 @@ func (service *Service) Start() error {
 		net.Dial("tcp", "localhost:"+service.port)
 		log.Println("And we're live.")
 	}()
-	return http.ListenAndServe(":"+service.port, service.Router)
+	corsHandler := cors.Default().Handler(service.Router)
+	//return http.ListenAndServe(":"+service.port, service.Router)
+	return http.ListenAndServe(":"+service.port, corsHandler)
 }
 
 // makeJsonResponse creates and sends a json response to a writer.
