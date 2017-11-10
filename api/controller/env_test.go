@@ -1,21 +1,23 @@
 // helper and setup functions for the tests
-package main_test
+package controller_test
 
 import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/satori/go.uuid"
 	"log"
-	"mutably/api"
+	"mutably/api/controller"
+	"mutably/api/model"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/satori/go.uuid"
 )
 
-var service *main.Service
+var service *controller.Service
 var db *sql.DB
 
 func init() {
@@ -31,12 +33,12 @@ func init() {
 	))
 
 	// This won't directly be used by tests.
-	database, err := main.NewDB(host, name, user, pwd)
+	database, err := model.NewDB(host, name, user, pwd)
 	if err != nil {
 		log.Fatal("Could not access database; ", err)
 	}
 
-	service, err = main.NewService(database, "8080")
+	service, err = controller.NewService(database, "8080")
 	if err != nil {
 		log.Fatal("Could not start service; ", err)
 	}

@@ -2,11 +2,13 @@ package main
 
 import (
 	"log"
+	"mutably/api/controller"
+	"mutably/api/model"
 	"os"
 )
 
 func main() {
-	database, e := NewDB(
+	database, e := model.NewDB(
 		os.Getenv("DATABASE_HOST"),
 		os.Getenv("DATABASE_NAME"),
 		os.Getenv("DATABASE_USER"),
@@ -16,7 +18,7 @@ func main() {
 		log.Fatal("Could not access database; ", e)
 	}
 
-	service, err := NewService(database, "8080")
+	service, err := controller.NewService(database, "8080")
 	if err != nil {
 		log.Fatal("Could not start service; ", err)
 	}

@@ -1,16 +1,17 @@
-package main
+package model
 
 import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/auth0/go-jwt-middleware"
-	"github.com/dgrijalva/jwt-go"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/auth0/go-jwt-middleware"
+	"github.com/dgrijalva/jwt-go"
 )
 
 // AuthLayer handles resource authorization.
@@ -89,8 +90,8 @@ func (auth *AuthLayer) GetClaims(r *http.Request) (jwt.MapClaims, error) {
 
 // Authenticate returns a middleware handler that will use jwt to validate the
 // Authorization header of a *http.Request.
-func (auth *AuthLayer) Authenticate(handler http.HandlerFunc) http.Handler {
-	return auth.middleware.Handler(handler)
+func (auth *AuthLayer) Authenticate(handler http.HandlerFunc) http.HandlerFunc {
+	return auth.middleware.Handler(handler).(http.HandlerFunc)
 }
 
 // GetCredentials reads a set of username:password credentials from a base64

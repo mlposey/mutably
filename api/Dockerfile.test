@@ -13,5 +13,5 @@ RUN go-wrapper download \
 RUN git clone https://github.com/vishnubob/wait-for-it.git \
  && mv wait-for-it/wait-for-it.sh .
 
-ENTRYPOINT /bin/bash wait-for-it.sh $DATABASE_HOST:5432 -t 0 -- go test -v .
+ENTRYPOINT /bin/bash wait-for-it.sh $DATABASE_HOST:5432 -t 0 -- go test -v ./...
 

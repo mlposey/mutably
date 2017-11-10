@@ -1,16 +1,17 @@
-package main_test
+package controller_test
 
 import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	_ "github.com/lib/pq"
-	"github.com/satori/go.uuid"
-	"mutably/api"
+	"mutably/api/model"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
+
+	_ "github.com/lib/pq"
+	"github.com/satori/go.uuid"
 )
 
 // APIv1 should return a 404 response code if a specific language
@@ -35,7 +36,7 @@ func TestGetLanguage_v1_exists(t *testing.T) {
 	resp := sendRequest(req)
 	checkCode(t, http.StatusOK, resp.Code)
 
-	var respBody main.Language
+	var respBody model.Language
 	json.Unmarshal(resp.Body.Bytes(), &respBody)
 
 	if respBody.Id != langId {
@@ -64,7 +65,7 @@ func TestGetLanguages_v1_notempty(t *testing.T) {
 	resp := sendRequest(req)
 	checkCode(t, http.StatusOK, resp.Code)
 
-	var respBody []main.Language
+	var respBody []model.Language
 	json.Unmarshal(resp.Body.Bytes(), &respBody)
 
 	// Make sure it returns a correct array.
@@ -110,7 +111,7 @@ func TestGetWords_v1_notempty(t *testing.T) {
 	resp := sendRequest(req)
 	checkCode(t, http.StatusOK, resp.Code)
 
-	var words []main.Word
+	var words []model.Word
 	json.Unmarshal(resp.Body.Bytes(), &words)
 
 	if len(words) == 0 {
@@ -143,7 +144,7 @@ func TestGetWord_v1_notempty(t *testing.T) {
 	resp := sendRequest(req)
 	checkCode(t, http.StatusOK, resp.Code)
 
-	var word main.Word
+	var word model.Word
 	json.Unmarshal(resp.Body.Bytes(), &word)
 
 	if word.Id != wordId {
@@ -227,7 +228,7 @@ func TestGetInflections_v1_exists(t *testing.T) {
 	resp := sendRequest(req)
 	checkCode(t, http.StatusOK, resp.Code)
 
-	var table main.ConjugationTable
+	var table model.ConjugationTable
 	json.Unmarshal(resp.Body.Bytes(), &table)
 
 	missingDataError := errors.New("Table is missing category information")
@@ -235,7 +236,7 @@ func TestGetInflections_v1_exists(t *testing.T) {
 		t.Error(missingDataError)
 	}
 
-	tenses := []*main.TenseInflection{table.Present, table.Past}
+	tenses := []*model.TenseInflection{table.Present, table.Past}
 	for _, tense := range tenses {
 		if len(tense.First) == 0 ||
 			len(tense.Second) == 0 ||
