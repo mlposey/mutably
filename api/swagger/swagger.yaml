@@ -89,7 +89,7 @@ paths:
           description: no words exist
           schema:
             $ref: '#/definitions/ErrorResponse'
-  '/words{id}':
+  '/words/{id}':
     get:
       tags:
         - words
