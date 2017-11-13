@@ -1,5 +1,3 @@
-FROM swaggerapi/swagger-ui
+FROM mlposey/swagger-ui
 
-COPY . /json
-
-ENV SWAGGER_JSON /json/swagger.json
+COPY swagger.json /build/dist

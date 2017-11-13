@@ -44,14 +44,10 @@ services:
       - 9000:8080
 
   api-docs:
-    image: swaggerapi/swagger-ui
+    build: ./api/swagger
     restart: always
-    environment:
-      - SWAGGER_JSON=/json/swagger.json
     ports:
       - 9090:8080
-    volumes:
-      - ./api/swagger:/json
 
 volumes:
   database-volume:
