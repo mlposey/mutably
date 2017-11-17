@@ -1,8 +1,11 @@
 # Mutably
-![Build Status](http://teamcity.marcusposey.com/app/rest/builds/aggregated/strob:(buildType:(project:(id:Mutably)))/statusIcon.svg)
-
 Mutably is a tool for learning natural languages. It currently offers partial
 support for Dutch verb conjugation.
+
+## Build Status
+| Anvil |  API  |
+|-------|-------|
+|<a href="http://teamcity.marcusposey.com/viewType.html?buildTypeId=Mutably_Build&guest=1"><img src="http://teamcity.marcusposey.com/app/rest/builds/buildType:(id:Mutably_Build)/statusIcon"/></a> | <a href="http://teamcity.marcusposey.com/viewType.html?buildTypeId=Mutably_Api&guest=1"><img src="http://teamcity.marcusposey.com/app/rest/builds/buildType:(id:Mutably_Api)/statusIcon"/></a> |
 
 ## Roadmap
 Development is focused on verb conjugation with the hope of bringing this task
